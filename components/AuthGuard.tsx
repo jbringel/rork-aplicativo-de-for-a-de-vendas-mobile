@@ -14,7 +14,15 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const navigationRef = useRef<boolean>(false);
 
   useEffect(() => {
-    if (isLoading || navigationRef.current) return;
+    if (isLoading) {
+      console.log('AuthGuard - Still loading, skipping navigation');
+      return;
+    }
+    
+    if (navigationRef.current) {
+      console.log('AuthGuard - Navigation in progress, skipping');
+      return;
+    }
 
     const currentPath = segments.join('/');
     const inLoginScreen = segments[0] === 'login';
@@ -32,33 +40,44 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
         console.log('Redirecting to login');
         navigationRef.current = true;
         
-        // Usar delays diferentes para cada plataforma
-        const delay = Platform.OS === 'ios' ? 300 : Platform.OS === 'web' ? 100 : 150;
-        
-        setTimeout(() => {
+        const performNavigation = () => {
           try {
             router.replace('/login');
+            console.log('Navigation to login successful');
           } catch (error) {
             console.error('Error navigating to login:', error);
+          } finally {
+            setTimeout(() => { 
+              navigationRef.current = false; 
+              console.log('Navigation lock released');
+            }, 500);
           }
-          setTimeout(() => { navigationRef.current = false; }, delay);
-        }, 50);
+        };
+        
+        // Aguardar um pouco antes de navegar
+        setTimeout(performNavigation, 100);
       }
     } else {
       if (inLoginScreen || isRootPath) {
         console.log('Redirecting to tabs');
         navigationRef.current = true;
         
-        const delay = Platform.OS === 'ios' ? 300 : Platform.OS === 'web' ? 100 : 150;
-        
-        setTimeout(() => {
+        const performNavigation = () => {
           try {
             router.replace('/(tabs)');
+            console.log('Navigation to tabs successful');
           } catch (error) {
             console.error('Error navigating to tabs:', error);
+          } finally {
+            setTimeout(() => { 
+              navigationRef.current = false; 
+              console.log('Navigation lock released');
+            }, 500);
           }
-          setTimeout(() => { navigationRef.current = false; }, delay);
-        }, 50);
+        };
+        
+        // Aguardar um pouco antes de navegar
+        setTimeout(performNavigation, 100);
       }
     }
   }, [isAuthenticated, isLoading, segments]);
@@ -67,6 +86,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
     return (
       <View style={styles.loadingContainer}>
         <Text style={styles.loadingText}>Carregando...</Text>
+        <Text style={[styles.loadingText, { fontSize: 14, marginTop: 8, opacity: 0.7 }]}>Inicializando aplicativo...</Text>
       </View>
     );
   }

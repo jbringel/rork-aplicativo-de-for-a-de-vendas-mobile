@@ -11,20 +11,50 @@ const initializeDatabase = async () => {
   if (dbManager) return dbManager;
   
   try {
+    console.log('Inicializando database manager...');
     const { dbManager: db } = await import('@/database/schema');
     dbManager = db;
+    console.log('Database manager inicializado com sucesso');
     return dbManager;
   } catch (error) {
     console.error('Erro ao importar database:', error);
+    console.log('Usando mock database como fallback');
+    
     // Return mock database for web or error cases
-    return {
-      getClientes: () => [],
-      getProdutos: () => [],
-      getPedidos: () => [],
-      getFormasPagamento: () => [],
-      getVendedores: () => [],
-      getSincronizacoes: () => [],
-      getDashboardData: () => ({ vendasHoje: { total: 0, valor: 0 }, vendasMes: { total: 0, valor: 0 }, produtosMaisVendidos: [], pedidosRecentes: [] }),
+    const mockDb = {
+      getClientes: () => {
+        console.log('Mock: getClientes chamado');
+        return [];
+      },
+      getProdutos: () => {
+        console.log('Mock: getProdutos chamado');
+        return [];
+      },
+      getPedidos: () => {
+        console.log('Mock: getPedidos chamado');
+        return [];
+      },
+      getFormasPagamento: () => {
+        console.log('Mock: getFormasPagamento chamado');
+        return [];
+      },
+      getVendedores: () => {
+        console.log('Mock: getVendedores chamado');
+        return [];
+      },
+      getSincronizacoes: () => {
+        console.log('Mock: getSincronizacoes chamado');
+        return [];
+      },
+      getDashboardData: () => {
+        console.log('Mock: getDashboardData chamado');
+        return { 
+          vendasHoje: { total: 0, valor: 0 }, 
+          vendasMes: { total: 0, valor: 0 }, 
+          produtosMaisVendidos: [], 
+          pedidosRecentes: [] 
+        };
+      },
       insertCliente: () => Math.floor(Math.random() * 1000),
       updateCliente: () => {},
       deleteCliente: () => {},
@@ -46,6 +76,9 @@ const initializeDatabase = async () => {
       insertSincronizacao: () => Math.floor(Math.random() * 1000),
       updateSincronizacao: () => {}
     };
+    
+    dbManager = mockDb;
+    return mockDb;
   }
 };
 
@@ -65,44 +98,63 @@ export const [VendasContext, useVendas] = createContextHook(() => {
       setIsLoading(true);
       console.log('Iniciando carregamento de dados...');
       
-      // Initialize database manager
-      const db = await initializeDatabase();
+      // Initialize database manager with timeout
+      const dbPromise = initializeDatabase();
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Database initialization timeout')), 10000)
+      );
+      
+      const db = await Promise.race([dbPromise, timeoutPromise]) as any;
       
       // Aguardar um pouco para garantir que o banco está pronto
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise(resolve => setTimeout(resolve, 200));
       
-      const clientesData = db.getClientes();
+      console.log('Carregando clientes...');
+      const clientesData = await Promise.resolve(db.getClientes());
       console.log('Clientes carregados:', clientesData?.length || 0);
       
-      const produtosData = db.getProdutos();
+      console.log('Carregando produtos...');
+      const produtosData = await Promise.resolve(db.getProdutos());
       console.log('Produtos carregados:', produtosData?.length || 0);
       
-      const pedidosData = db.getPedidos();
+      console.log('Carregando pedidos...');
+      const pedidosData = await Promise.resolve(db.getPedidos());
       console.log('Pedidos carregados:', pedidosData?.length || 0);
       
-      const formasData = db.getFormasPagamento();
+      console.log('Carregando formas de pagamento...');
+      const formasData = await Promise.resolve(db.getFormasPagamento());
       console.log('Formas de pagamento carregadas:', formasData?.length || 0);
       
-      const vendedoresData = db.getVendedores();
+      console.log('Carregando vendedores...');
+      const vendedoresData = await Promise.resolve(db.getVendedores());
       console.log('Vendedores carregados:', vendedoresData?.length || 0);
       
-      const syncData = db.getSincronizacoes();
+      console.log('Carregando sincronizações...');
+      const syncData = await Promise.resolve(db.getSincronizacoes());
       console.log('Sincronizações carregadas:', syncData?.length || 0);
       
-      const dashData = db.getDashboardData();
+      console.log('Carregando dashboard data...');
+      const dashData = await Promise.resolve(db.getDashboardData());
       console.log('Dashboard data:', dashData);
 
-      setClientes(clientesData || []);
-      setProdutos(produtosData || []);
-      setPedidos(pedidosData || []);
-      setFormasPagamento(formasData || []);
-      setVendedores(vendedoresData || []);
-      setSincronizacoes(syncData || []);
-      setDashboardData(dashData || {});
+      // Atualizar estado de forma segura
+      setClientes(Array.isArray(clientesData) ? clientesData : []);
+      setProdutos(Array.isArray(produtosData) ? produtosData : []);
+      setPedidos(Array.isArray(pedidosData) ? pedidosData : []);
+      setFormasPagamento(Array.isArray(formasData) ? formasData : []);
+      setVendedores(Array.isArray(vendedoresData) ? vendedoresData : []);
+      setSincronizacoes(Array.isArray(syncData) ? syncData : []);
+      setDashboardData(dashData || {
+        vendasHoje: { total: 0, valor: 0 },
+        vendasMes: { total: 0, valor: 0 },
+        produtosMaisVendidos: [],
+        pedidosRecentes: []
+      });
       
       console.log('Dados carregados com sucesso!');
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
+      
       // Definir valores padrão em caso de erro
       setClientes([]);
       setProdutos([]);
@@ -110,15 +162,29 @@ export const [VendasContext, useVendas] = createContextHook(() => {
       setFormasPagamento([]);
       setVendedores([]);
       setSincronizacoes([]);
-      setDashboardData({});
+      setDashboardData({
+        vendasHoje: { total: 0, valor: 0 },
+        vendasMes: { total: 0, valor: 0 },
+        produtosMaisVendidos: [],
+        pedidosRecentes: []
+      });
     } finally {
       setIsLoading(false);
+      console.log('LoadData finalizado');
     }
   }, []);
 
   useEffect(() => {
     console.log('VendasContext inicializando...');
-    loadData();
+    
+    // Aguardar um pouco antes de carregar os dados para evitar conflitos
+    const timer = setTimeout(() => {
+      loadData().catch(error => {
+        console.error('Erro no carregamento inicial:', error);
+      });
+    }, 300);
+    
+    return () => clearTimeout(timer);
   }, [loadData]);
 
   const addCliente = useCallback(async (cliente: Omit<Cliente, 'id_cliente'>) => {

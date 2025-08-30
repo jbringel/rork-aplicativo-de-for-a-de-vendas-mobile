@@ -111,198 +111,252 @@ export interface PedidoPagamento {
 }
 
 export class DatabaseManager {
-  private db: SQLite.SQLiteDatabase;
+  private db: SQLite.SQLiteDatabase | any;
 
   constructor() {
     try {
-      console.log('Inicializando banco de dados...');
+      console.log('Inicializando banco de dados... Platform:', Platform.OS);
       
       // Verificar se estamos no web - SQLite não funciona no web
       if (Platform.OS === 'web') {
         console.warn('SQLite não suportado no web, usando dados mock');
-        // @ts-ignore - Mock database for web
-        this.db = {
-          execSync: () => {},
-          runSync: () => ({ lastInsertRowId: Math.floor(Math.random() * 1000), changes: 1 }),
-          getAllSync: () => [],
-          getFirstSync: () => ({ count: 0 })
-        };
-        this.initWebMockData();
+        this.initMockDatabase();
         return;
       }
       
+      console.log('Tentando abrir banco SQLite...');
       this.db = SQLite.openDatabaseSync('vendas.db');
       console.log('Banco de dados aberto com sucesso');
-      this.initDatabase();
-      console.log('Banco de dados inicializado com sucesso');
+      
+      // Aguardar um pouco antes de inicializar
+      setTimeout(() => {
+        try {
+          this.initDatabase();
+          console.log('Banco de dados inicializado com sucesso');
+        } catch (initError) {
+          console.error('Erro na inicialização do banco:', initError);
+          this.initMockDatabase();
+        }
+      }, 100);
+      
     } catch (error) {
       console.error('Erro ao inicializar banco de dados:', error);
+      
       // Tentar novamente com um nome diferente
       try {
         console.log('Tentando criar banco com nome alternativo...');
         this.db = SQLite.openDatabaseSync('vendas_backup.db');
-        this.initDatabase();
-        console.log('Banco alternativo criado com sucesso');
+        
+        setTimeout(() => {
+          try {
+            this.initDatabase();
+            console.log('Banco alternativo criado com sucesso');
+          } catch (initError) {
+            console.error('Erro na inicialização do banco alternativo:', initError);
+            this.initMockDatabase();
+          }
+        }, 100);
+        
       } catch (secondError) {
         console.error('Erro crítico ao criar banco:', secondError);
-        // Fallback para dados mock
-        // @ts-ignore
-        this.db = {
-          execSync: () => {},
-          runSync: () => ({ lastInsertRowId: Math.floor(Math.random() * 1000), changes: 1 }),
-          getAllSync: () => [],
-          getFirstSync: () => ({ count: 0 })
-        };
-        this.initWebMockData();
+        this.initMockDatabase();
       }
     }
   }
+  
+  private initMockDatabase() {
+    console.log('Inicializando mock database...');
+    // @ts-ignore - Mock database for web or error cases
+    this.db = {
+      execSync: () => {
+        console.log('Mock: execSync chamado');
+      },
+      runSync: () => {
+        console.log('Mock: runSync chamado');
+        return { lastInsertRowId: Math.floor(Math.random() * 1000), changes: 1 };
+      },
+      getAllSync: () => {
+        console.log('Mock: getAllSync chamado');
+        return [];
+      },
+      getFirstSync: () => {
+        console.log('Mock: getFirstSync chamado');
+        return { count: 0 };
+      }
+    };
+    this.initWebMockData();
+    console.log('Mock database inicializado');
+  }
 
   private initDatabase() {
-    this.db.execSync(`
-      CREATE TABLE IF NOT EXISTS clientes (
-        id_cliente INTEGER PRIMARY KEY AUTOINCREMENT,
-        nome_razao TEXT NOT NULL,
-        fantasia TEXT,
-        cpf_cnpj TEXT,
-        inscricao_estadual TEXT,
-        endereco_logradouro TEXT,
-        endereco_numero TEXT,
-        endereco_complemento TEXT,
-        bairro TEXT,
-        cidade TEXT,
-        uf TEXT,
-        cep TEXT,
-        telefone TEXT,
-        email TEXT,
-        limite_credito REAL DEFAULT 0,
-        saldo_devedor REAL DEFAULT 0,
-        vendedor_responsavel INTEGER,
-        observacoes TEXT,
-        ativo INTEGER DEFAULT 1
-      );
+    try {
+      console.log('Criando tabelas do banco de dados...');
+      
+      this.db.execSync(`
+        CREATE TABLE IF NOT EXISTS clientes (
+          id_cliente INTEGER PRIMARY KEY AUTOINCREMENT,
+          nome_razao TEXT NOT NULL,
+          fantasia TEXT,
+          cpf_cnpj TEXT,
+          inscricao_estadual TEXT,
+          endereco_logradouro TEXT,
+          endereco_numero TEXT,
+          endereco_complemento TEXT,
+          bairro TEXT,
+          cidade TEXT,
+          uf TEXT,
+          cep TEXT,
+          telefone TEXT,
+          email TEXT,
+          limite_credito REAL DEFAULT 0,
+          saldo_devedor REAL DEFAULT 0,
+          vendedor_responsavel INTEGER,
+          observacoes TEXT,
+          ativo INTEGER DEFAULT 1
+        );
 
-      CREATE TABLE IF NOT EXISTS produtos (
-        id_produto INTEGER PRIMARY KEY AUTOINCREMENT,
-        codigo TEXT NOT NULL UNIQUE,
-        nome TEXT NOT NULL,
-        descricao TEXT,
-        categoria TEXT,
-        preco_venda REAL NOT NULL,
-        preco_promocional REAL,
-        estoque_atual REAL DEFAULT 0,
-        unidade_medida TEXT DEFAULT 'UN',
-        ncm TEXT,
-        observacoes TEXT,
-        ativo INTEGER DEFAULT 1
-      );
+        CREATE TABLE IF NOT EXISTS produtos (
+          id_produto INTEGER PRIMARY KEY AUTOINCREMENT,
+          codigo TEXT NOT NULL UNIQUE,
+          nome TEXT NOT NULL,
+          descricao TEXT,
+          categoria TEXT,
+          preco_venda REAL NOT NULL,
+          preco_promocional REAL,
+          estoque_atual REAL DEFAULT 0,
+          unidade_medida TEXT DEFAULT 'UN',
+          ncm TEXT,
+          observacoes TEXT,
+          ativo INTEGER DEFAULT 1
+        );
 
-      CREATE TABLE IF NOT EXISTS vendedores (
-        id_vendedor INTEGER PRIMARY KEY AUTOINCREMENT,
-        codigo_vendedor TEXT,
-        nome TEXT NOT NULL,
-        email TEXT,
-        telefone TEXT,
-        ativo INTEGER DEFAULT 1
-      );
+        CREATE TABLE IF NOT EXISTS vendedores (
+          id_vendedor INTEGER PRIMARY KEY AUTOINCREMENT,
+          codigo_vendedor TEXT,
+          nome TEXT NOT NULL,
+          email TEXT,
+          telefone TEXT,
+          ativo INTEGER DEFAULT 1
+        );
 
-      CREATE TABLE IF NOT EXISTS pedidos (
-        id_pedido INTEGER PRIMARY KEY AUTOINCREMENT,
-        id_cliente INTEGER,
-        id_vendedor INTEGER,
-        data_pedido TEXT NOT NULL,
-        status TEXT DEFAULT 'Pendente',
-        valor_bruto REAL DEFAULT 0,
-        valor_desconto REAL DEFAULT 0,
-        valor_liquido REAL DEFAULT 0,
-        forma_pagamento_padrao INTEGER,
-        observacoes TEXT,
-        sincronizado INTEGER DEFAULT 0,
-        FOREIGN KEY (id_cliente) REFERENCES clientes (id_cliente),
-        FOREIGN KEY (id_vendedor) REFERENCES vendedores (id_vendedor)
-      );
+        CREATE TABLE IF NOT EXISTS pedidos (
+          id_pedido INTEGER PRIMARY KEY AUTOINCREMENT,
+          id_cliente INTEGER,
+          id_vendedor INTEGER,
+          data_pedido TEXT NOT NULL,
+          status TEXT DEFAULT 'Pendente',
+          valor_bruto REAL DEFAULT 0,
+          valor_desconto REAL DEFAULT 0,
+          valor_liquido REAL DEFAULT 0,
+          forma_pagamento_padrao INTEGER,
+          observacoes TEXT,
+          sincronizado INTEGER DEFAULT 0,
+          FOREIGN KEY (id_cliente) REFERENCES clientes (id_cliente),
+          FOREIGN KEY (id_vendedor) REFERENCES vendedores (id_vendedor)
+        );
 
-      CREATE TABLE IF NOT EXISTS itens_pedido (
-        id_item INTEGER PRIMARY KEY AUTOINCREMENT,
-        id_pedido INTEGER,
-        id_produto INTEGER,
-        codigo_produto TEXT,
-        descricao_produto TEXT,
-        quantidade REAL NOT NULL,
-        valor_unitario REAL NOT NULL,
-        desconto_item REAL DEFAULT 0,
-        subtotal REAL NOT NULL,
-        FOREIGN KEY (id_pedido) REFERENCES pedidos (id_pedido),
-        FOREIGN KEY (id_produto) REFERENCES produtos (id_produto)
-      );
+        CREATE TABLE IF NOT EXISTS itens_pedido (
+          id_item INTEGER PRIMARY KEY AUTOINCREMENT,
+          id_pedido INTEGER,
+          id_produto INTEGER,
+          codigo_produto TEXT,
+          descricao_produto TEXT,
+          quantidade REAL NOT NULL,
+          valor_unitario REAL NOT NULL,
+          desconto_item REAL DEFAULT 0,
+          subtotal REAL NOT NULL,
+          FOREIGN KEY (id_pedido) REFERENCES pedidos (id_pedido),
+          FOREIGN KEY (id_produto) REFERENCES produtos (id_produto)
+        );
 
-      CREATE TABLE IF NOT EXISTS formas_pagamento (
-        id_forma_pagamento INTEGER PRIMARY KEY AUTOINCREMENT,
-        descricao TEXT NOT NULL,
-        tipo TEXT,
-        numero_max_parcelas INTEGER DEFAULT 1,
-        parcel_intervalo_dias INTEGER DEFAULT 30,
-        ativo INTEGER DEFAULT 1
-      );
+        CREATE TABLE IF NOT EXISTS formas_pagamento (
+          id_forma_pagamento INTEGER PRIMARY KEY AUTOINCREMENT,
+          descricao TEXT NOT NULL,
+          tipo TEXT,
+          numero_max_parcelas INTEGER DEFAULT 1,
+          parcel_intervalo_dias INTEGER DEFAULT 30,
+          ativo INTEGER DEFAULT 1
+        );
 
-      CREATE TABLE IF NOT EXISTS pedido_pagamentos (
-        id_pagamento INTEGER PRIMARY KEY AUTOINCREMENT,
-        id_pedido INTEGER,
-        id_forma_pagamento INTEGER,
-        numero_parcela INTEGER NOT NULL,
-        valor_parcela REAL NOT NULL,
-        data_vencimento TEXT NOT NULL,
-        status_parcela TEXT DEFAULT 'Aberta',
-        FOREIGN KEY (id_pedido) REFERENCES pedidos (id_pedido),
-        FOREIGN KEY (id_forma_pagamento) REFERENCES formas_pagamento (id_forma_pagamento)
-      );
+        CREATE TABLE IF NOT EXISTS pedido_pagamentos (
+          id_pagamento INTEGER PRIMARY KEY AUTOINCREMENT,
+          id_pedido INTEGER,
+          id_forma_pagamento INTEGER,
+          numero_parcela INTEGER NOT NULL,
+          valor_parcela REAL NOT NULL,
+          data_vencimento TEXT NOT NULL,
+          status_parcela TEXT DEFAULT 'Aberta',
+          FOREIGN KEY (id_pedido) REFERENCES pedidos (id_pedido),
+          FOREIGN KEY (id_forma_pagamento) REFERENCES formas_pagamento (id_forma_pagamento)
+        );
 
-      CREATE TABLE IF NOT EXISTS estoque_movimentos (
-        id_mov INTEGER PRIMARY KEY AUTOINCREMENT,
-        id_produto INTEGER,
-        tipo_mov TEXT NOT NULL,
-        quantidade REAL NOT NULL,
-        data_mov TEXT NOT NULL,
-        referencia TEXT,
-        FOREIGN KEY (id_produto) REFERENCES produtos (id_produto)
-      );
+        CREATE TABLE IF NOT EXISTS estoque_movimentos (
+          id_mov INTEGER PRIMARY KEY AUTOINCREMENT,
+          id_produto INTEGER,
+          tipo_mov TEXT NOT NULL,
+          quantidade REAL NOT NULL,
+          data_mov TEXT NOT NULL,
+          referencia TEXT,
+          FOREIGN KEY (id_produto) REFERENCES produtos (id_produto)
+        );
 
-      CREATE TABLE IF NOT EXISTS sincronizacoes (
-        id_sync INTEGER PRIMARY KEY AUTOINCREMENT,
-        tipo TEXT NOT NULL,
-        inicio TEXT NOT NULL,
-        fim TEXT,
-        status TEXT NOT NULL,
-        mensagem TEXT
-      );
+        CREATE TABLE IF NOT EXISTS sincronizacoes (
+          id_sync INTEGER PRIMARY KEY AUTOINCREMENT,
+          tipo TEXT NOT NULL,
+          inicio TEXT NOT NULL,
+          fim TEXT,
+          status TEXT NOT NULL,
+          mensagem TEXT
+        );
 
-      CREATE TABLE IF NOT EXISTS metadados_campos (
-        id_meta INTEGER PRIMARY KEY AUTOINCREMENT,
-        entidade TEXT NOT NULL,
-        campo TEXT NOT NULL,
-        tipo TEXT NOT NULL,
-        obrigatorio INTEGER DEFAULT 0,
-        label TEXT
-      );
-    `);
+        CREATE TABLE IF NOT EXISTS metadados_campos (
+          id_meta INTEGER PRIMARY KEY AUTOINCREMENT,
+          entidade TEXT NOT NULL,
+          campo TEXT NOT NULL,
+          tipo TEXT NOT NULL,
+          obrigatorio INTEGER DEFAULT 0,
+          label TEXT
+        );
+      `);
+      
+      console.log('Tabelas criadas com sucesso');
 
-    // Inserir formas de pagamento padrão
-    this.insertDefaultPaymentMethods();
-    this.insertSampleData();
-    
-    // Executar migrações após criar as tabelas
-    this.runMigrations();
-    
-    // Inserir supervisor padrão
-    this.insertDefaultSupervisor();
+      // Inserir dados padrão de forma segura
+      try {
+        console.log('Inserindo formas de pagamento padrão...');
+        this.insertDefaultPaymentMethods();
+        
+        console.log('Inserindo dados de exemplo...');
+        this.insertSampleData();
+        
+        console.log('Executando migrações...');
+        this.runMigrations();
+        
+        console.log('Inserindo supervisor padrão...');
+        this.insertDefaultSupervisor();
+        
+        console.log('Inicialização do banco concluída com sucesso');
+      } catch (dataError) {
+        console.error('Erro ao inserir dados padrão:', dataError);
+        // Continuar mesmo com erro nos dados padrão
+      }
+      
+    } catch (error) {
+      console.error('Erro crítico na inicialização do banco:', error);
+      throw error;
+    }
   }
 
   private runMigrations() {
     try {
+      console.log('Executando migrações do banco de dados...');
+      
       // Verificar se a tabela vendedores existe
       const tables = this.db.getAllSync("SELECT name FROM sqlite_master WHERE type='table' AND name='vendedores'") as any[];
       
       if (tables.length > 0) {
+        console.log('Tabela vendedores encontrada, verificando colunas...');
+        
         // Verificar se a coluna codigo_vendedor existe na tabela vendedores
         const tableInfo = this.db.getAllSync("PRAGMA table_info(vendedores)") as any[];
         const hasCodigoVendedor = tableInfo.some(column => column.name === 'codigo_vendedor');
@@ -311,36 +365,41 @@ export class DatabaseManager {
           console.log('Adicionando coluna codigo_vendedor à tabela vendedores...');
           this.db.execSync('ALTER TABLE vendedores ADD COLUMN codigo_vendedor TEXT');
           console.log('Coluna codigo_vendedor adicionada com sucesso!');
-          
-          // Inserir vendedor supervisor padrão se não existir
-          this.insertDefaultSupervisor();
         } else {
           console.log('Coluna codigo_vendedor já existe na tabela vendedores');
-          // Verificar se supervisor existe
-          this.insertDefaultSupervisor();
         }
       } else {
         console.log('Tabela vendedores não existe ainda, será criada pelo CREATE TABLE');
       }
+      
+      console.log('Migrações executadas com sucesso');
     } catch (error) {
       console.error('Erro ao executar migrações:', error);
-      // Se a tabela não existe, será criada pelo CREATE TABLE IF NOT EXISTS
+      // Continuar mesmo com erro nas migrações
     }
   }
 
   private insertDefaultPaymentMethods() {
-    const existingMethods = this.db.getFirstSync('SELECT COUNT(*) as count FROM formas_pagamento') as { count: number };
-    
-    if (existingMethods.count === 0) {
-      this.db.execSync(`
-        INSERT INTO formas_pagamento (descricao, tipo, numero_max_parcelas, parcel_intervalo_dias) VALUES
-        ('À Vista', 'dinheiro', 1, 0),
-        ('Cartão de Crédito', 'cartao', 12, 30),
-        ('Cartão de Débito', 'cartao', 1, 0),
-        ('PIX', 'pix', 1, 0),
-        ('Boleto', 'boleto', 6, 30),
-        ('Crediário', 'crediario', 24, 30);
-      `);
+    try {
+      const existingMethods = this.db.getFirstSync('SELECT COUNT(*) as count FROM formas_pagamento') as { count: number };
+      
+      if (existingMethods.count === 0) {
+        console.log('Inserindo formas de pagamento padrão...');
+        this.db.execSync(`
+          INSERT INTO formas_pagamento (descricao, tipo, numero_max_parcelas, parcel_intervalo_dias) VALUES
+          ('À Vista', 'dinheiro', 1, 0),
+          ('Cartão de Crédito', 'cartao', 12, 30),
+          ('Cartão de Débito', 'cartao', 1, 0),
+          ('PIX', 'pix', 1, 0),
+          ('Boleto', 'boleto', 6, 30),
+          ('Crediário', 'crediario', 24, 30);
+        `);
+        console.log('Formas de pagamento inseridas com sucesso');
+      } else {
+        console.log('Formas de pagamento já existem no banco');
+      }
+    } catch (error) {
+      console.error('Erro ao inserir formas de pagamento:', error);
     }
   }
 
@@ -352,33 +411,47 @@ export class DatabaseManager {
   }
 
   private insertSampleData() {
-    const existingClients = this.db.getFirstSync('SELECT COUNT(*) as count FROM clientes') as { count: number };
-    
-    if (existingClients.count === 0) {
-      this.db.execSync(`
-        INSERT INTO clientes (nome_razao, cpf_cnpj, telefone, email, limite_credito) VALUES
-        ('João Silva', '123.456.789-00', '(11) 99999-9999', 'joao@email.com', 5000.00),
-        ('Maria Santos', '987.654.321-00', '(11) 88888-8888', 'maria@email.com', 3000.00),
-        ('Empresa ABC Ltda', '12.345.678/0001-90', '(11) 77777-7777', 'contato@abc.com', 10000.00);
-      `);
-    }
+    try {
+      const existingClients = this.db.getFirstSync('SELECT COUNT(*) as count FROM clientes') as { count: number };
+      
+      if (existingClients.count === 0) {
+        console.log('Inserindo clientes de exemplo...');
+        this.db.execSync(`
+          INSERT INTO clientes (nome_razao, cpf_cnpj, telefone, email, limite_credito) VALUES
+          ('João Silva', '123.456.789-00', '(11) 99999-9999', 'joao@email.com', 5000.00),
+          ('Maria Santos', '987.654.321-00', '(11) 88888-8888', 'maria@email.com', 3000.00),
+          ('Empresa ABC Ltda', '12.345.678/0001-90', '(11) 77777-7777', 'contato@abc.com', 10000.00);
+        `);
+        console.log('Clientes de exemplo inseridos');
+      } else {
+        console.log('Clientes já existem no banco');
+      }
 
-    const existingProducts = this.db.getFirstSync('SELECT COUNT(*) as count FROM produtos') as { count: number };
-    
-    if (existingProducts.count === 0) {
-      this.db.execSync(`
-        INSERT INTO produtos (codigo, nome, categoria, preco_venda, estoque_atual) VALUES
-        ('001', 'Produto A', 'Categoria 1', 25.90, 100),
-        ('002', 'Produto B', 'Categoria 1', 45.50, 50),
-        ('003', 'Produto C', 'Categoria 2', 89.90, 25),
-        ('004', 'Produto D', 'Categoria 2', 120.00, 15),
-        ('005', 'Produto E', 'Categoria 3', 199.90, 8);
-      `);
+      const existingProducts = this.db.getFirstSync('SELECT COUNT(*) as count FROM produtos') as { count: number };
+      
+      if (existingProducts.count === 0) {
+        console.log('Inserindo produtos de exemplo...');
+        this.db.execSync(`
+          INSERT INTO produtos (codigo, nome, categoria, preco_venda, estoque_atual) VALUES
+          ('001', 'Produto A', 'Categoria 1', 25.90, 100),
+          ('002', 'Produto B', 'Categoria 1', 45.50, 50),
+          ('003', 'Produto C', 'Categoria 2', 89.90, 25),
+          ('004', 'Produto D', 'Categoria 2', 120.00, 15),
+          ('005', 'Produto E', 'Categoria 3', 199.90, 8);
+        `);
+        console.log('Produtos de exemplo inseridos');
+      } else {
+        console.log('Produtos já existem no banco');
+      }
+    } catch (error) {
+      console.error('Erro ao inserir dados de exemplo:', error);
     }
   }
   
   private insertDefaultSupervisor() {
     try {
+      console.log('Verificando supervisor padrão...');
+      
       // Verificar se já existe um supervisor com código "1"
       const existingSupervisor = this.db.getFirstSync(
         'SELECT COUNT(*) as count FROM vendedores WHERE codigo_vendedor = ?',
@@ -397,6 +470,7 @@ export class DatabaseManager {
       }
     } catch (error) {
       console.error('Erro ao inserir supervisor padrão:', error);
+      // Continuar mesmo com erro
     }
   }
 

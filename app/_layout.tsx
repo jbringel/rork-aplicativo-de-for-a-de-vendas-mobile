@@ -3,7 +3,7 @@ import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect, Component, ReactNode } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { View, Text, StyleSheet } from "react-native";
+import { View, Text, StyleSheet, Platform } from "react-native";
 import { VendasContext } from "@/contexts/VendasContext";
 import { AuthContext } from "@/contexts/AuthContext";
 import AuthGuard from "@/components/AuthGuard";
@@ -79,8 +79,16 @@ function RootLayoutNav() {
 
 export default function RootLayout() {
   useEffect(() => {
-    console.log('RootLayout iniciando...');
-    SplashScreen.hideAsync();
+    console.log('RootLayout iniciando... Platform:', Platform.OS);
+    
+    // Aguardar um pouco antes de esconder o splash screen
+    const timer = setTimeout(() => {
+      SplashScreen.hideAsync().catch(error => {
+        console.error('Erro ao esconder splash screen:', error);
+      });
+    }, 100);
+    
+    return () => clearTimeout(timer);
   }, []);
 
   return (
