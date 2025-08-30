@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, Modal, FlatList } from 'react-native';
 import { router } from 'expo-router';
-import { Save, X, Plus, Search, Trash2, User, CreditCard, Calendar } from 'lucide-react-native';
+import { Save, X, Plus, Search, Trash2, User, CreditCard, Calendar, Minus } from 'lucide-react-native';
 import { useVendas } from '@/contexts/VendasContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { Cliente, Produto, FormaPagamento, Vendedor } from '@/database/schema';
@@ -55,6 +55,7 @@ export default function PedidoFormScreen() {
   const [searchClienteQuery, setSearchClienteQuery] = useState('');
   const [searchProdutoQuery, setSearchProdutoQuery] = useState('');
   const [produtosFiltrados, setProdutosFiltrados] = useState<Produto[]>([]);
+  const [quantidadesProdutos, setQuantidadesProdutos] = useState<{[key: number]: number}>({});
 
   useEffect(() => {
     const loadProdutos = async () => {
@@ -92,15 +93,37 @@ export default function PedidoFormScreen() {
   };
 
   const adicionarItem = (produto: Produto) => {
+    const quantidade = quantidadesProdutos[produto.id_produto!] || 1;
     const novoItem: ItemPedido = {
       produto,
-      quantidade: 1,
+      quantidade,
       valor_unitario: produto.preco_promocional || produto.preco_venda,
       desconto_item: 0,
-      subtotal: produto.preco_promocional || produto.preco_venda,
+      subtotal: (produto.preco_promocional || produto.preco_venda) * quantidade,
     };
     setItens(prev => [...prev, novoItem]);
+    setQuantidadesProdutos(prev => ({ ...prev, [produto.id_produto!]: 1 })); // Reset quantidade
     setShowProdutoModal(false);
+  };
+
+  const alterarQuantidadeProduto = (produtoId: number, delta: number) => {
+    setQuantidadesProdutos(prev => {
+      const quantidadeAtual = prev[produtoId] || 1;
+      const novaQuantidade = Math.max(1, quantidadeAtual + delta);
+      return { ...prev, [produtoId]: novaQuantidade };
+    });
+  };
+
+  const alterarQuantidadeItem = (index: number, delta: number) => {
+    setItens(prev => prev.map((item, i) => {
+      if (i === index) {
+        const novaQuantidade = Math.max(1, item.quantidade + delta);
+        const itemAtualizado = { ...item, quantidade: novaQuantidade };
+        itemAtualizado.subtotal = (itemAtualizado.quantidade * itemAtualizado.valor_unitario) - itemAtualizado.desconto_item;
+        return itemAtualizado;
+      }
+      return item;
+    }));
   };
 
   const atualizarItem = (index: number, campo: keyof ItemPedido, valor: any) => {
@@ -264,12 +287,26 @@ export default function PedidoFormScreen() {
               <View style={styles.itemInputs}>
                 <View style={styles.inputGroup}>
                   <Text style={styles.inputLabel}>Qtd</Text>
-                  <TextInput
-                    style={styles.smallInput}
-                    value={item.quantidade.toString()}
-                    onChangeText={(text) => atualizarItem(index, 'quantidade', parseFloat(text) || 0)}
-                    keyboardType="numeric"
-                  />
+                  <View style={styles.quantityContainer}>
+                    <TouchableOpacity 
+                      style={styles.quantityButton}
+                      onPress={() => alterarQuantidadeItem(index, -1)}
+                    >
+                      <Minus color={Colors.primary} size={16} />
+                    </TouchableOpacity>
+                    <TextInput
+                      style={styles.quantityInput}
+                      value={item.quantidade.toString()}
+                      onChangeText={(text) => atualizarItem(index, 'quantidade', parseFloat(text) || 1)}
+                      keyboardType="numeric"
+                    />
+                    <TouchableOpacity 
+                      style={styles.quantityButton}
+                      onPress={() => alterarQuantidadeItem(index, 1)}
+                    >
+                      <Plus color={Colors.primary} size={16} />
+                    </TouchableOpacity>
+                  </View>
                 </View>
                 
                 <View style={styles.inputGroup}>
@@ -432,23 +469,43 @@ export default function PedidoFormScreen() {
           <FlatList
             data={produtosFiltrados}
             keyExtractor={(item) => item.id_produto!.toString()}
-            renderItem={({ item }) => (
-              <TouchableOpacity
-                style={styles.produtoItem}
-                onPress={() => adicionarItem(item)}
-              >
-                <View style={styles.produtoInfo}>
-                  <Text style={styles.produtoNome}>{item.nome}</Text>
-                  <Text style={styles.produtoCodigo}>Código: {item.codigo}</Text>
-                  <Text style={styles.produtoPreco}>
-                    {formatCurrency(item.preco_promocional || item.preco_venda)}
-                  </Text>
+            renderItem={({ item }) => {
+              const quantidade = quantidadesProdutos[item.id_produto!] || 1;
+              return (
+                <View style={styles.produtoItemContainer}>
+                  <TouchableOpacity
+                    style={styles.produtoItem}
+                    onPress={() => adicionarItem(item)}
+                  >
+                    <View style={styles.produtoInfo}>
+                      <Text style={styles.produtoNome}>{item.nome}</Text>
+                      <Text style={styles.produtoCodigo}>Código: {item.codigo}</Text>
+                      <Text style={styles.produtoPreco}>
+                        {formatCurrency(item.preco_promocional || item.preco_venda)}
+                      </Text>
+                    </View>
+                    <Text style={styles.produtoEstoque}>
+                      Estoque: {item.estoque_atual || 0}
+                    </Text>
+                  </TouchableOpacity>
+                  <View style={styles.produtoQuantityContainer}>
+                    <TouchableOpacity 
+                      style={styles.produtoQuantityButton}
+                      onPress={() => alterarQuantidadeProduto(item.id_produto!, -1)}
+                    >
+                      <Minus color={Colors.surface} size={16} />
+                    </TouchableOpacity>
+                    <Text style={styles.produtoQuantityText}>{quantidade}</Text>
+                    <TouchableOpacity 
+                      style={styles.produtoQuantityButton}
+                      onPress={() => alterarQuantidadeProduto(item.id_produto!, 1)}
+                    >
+                      <Plus color={Colors.surface} size={16} />
+                    </TouchableOpacity>
+                  </View>
                 </View>
-                <Text style={styles.produtoEstoque}>
-                  Estoque: {item.estoque_atual || 0}
-                </Text>
-              </TouchableOpacity>
-            )}
+              );
+            }}
           />
         </View>
       </Modal>
@@ -1041,5 +1098,54 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.textSecondary,
     marginTop: 2,
+  },
+  quantityContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 6,
+    overflow: 'hidden',
+  },
+  quantityButton: {
+    padding: 8,
+    backgroundColor: Colors.background,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  quantityInput: {
+    flex: 1,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    fontSize: 14,
+    textAlign: 'center',
+    minWidth: 40,
+  },
+  produtoItemContainer: {
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+  },
+  produtoQuantityContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    backgroundColor: Colors.background,
+  },
+  produtoQuantityButton: {
+    backgroundColor: Colors.primary,
+    borderRadius: 20,
+    width: 32,
+    height: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  produtoQuantityText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.text,
+    marginHorizontal: 16,
+    minWidth: 30,
+    textAlign: 'center',
   },
 });
