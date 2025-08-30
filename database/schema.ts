@@ -286,24 +286,33 @@ export class DatabaseManager {
       );
     `);
 
-    // Executar migrações
-    this.runMigrations();
-    
     // Inserir formas de pagamento padrão
     this.insertDefaultPaymentMethods();
     this.insertSampleData();
+    
+    // Executar migrações após criar as tabelas
+    this.runMigrations();
   }
 
   private runMigrations() {
     try {
-      // Verificar se a coluna codigo_vendedor existe na tabela vendedores
-      const tableInfo = this.db.getAllSync("PRAGMA table_info(vendedores)") as any[];
-      const hasCodigoVendedor = tableInfo.some(column => column.name === 'codigo_vendedor');
+      // Verificar se a tabela vendedores existe
+      const tables = this.db.getAllSync("SELECT name FROM sqlite_master WHERE type='table' AND name='vendedores'") as any[];
       
-      if (!hasCodigoVendedor) {
-        console.log('Adicionando coluna codigo_vendedor à tabela vendedores...');
-        this.db.execSync('ALTER TABLE vendedores ADD COLUMN codigo_vendedor TEXT');
-        console.log('Coluna codigo_vendedor adicionada com sucesso!');
+      if (tables.length > 0) {
+        // Verificar se a coluna codigo_vendedor existe na tabela vendedores
+        const tableInfo = this.db.getAllSync("PRAGMA table_info(vendedores)") as any[];
+        const hasCodigoVendedor = tableInfo.some(column => column.name === 'codigo_vendedor');
+        
+        if (!hasCodigoVendedor) {
+          console.log('Adicionando coluna codigo_vendedor à tabela vendedores...');
+          this.db.execSync('ALTER TABLE vendedores ADD COLUMN codigo_vendedor TEXT');
+          console.log('Coluna codigo_vendedor adicionada com sucesso!');
+        } else {
+          console.log('Coluna codigo_vendedor já existe na tabela vendedores');
+        }
+      } else {
+        console.log('Tabela vendedores não existe ainda, será criada pelo CREATE TABLE');
       }
     } catch (error) {
       console.error('Erro ao executar migrações:', error);
