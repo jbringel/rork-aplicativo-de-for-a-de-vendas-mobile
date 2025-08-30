@@ -31,6 +31,7 @@ interface UserData {
   username: string;
   password: string;
   role: 'master' | 'user';
+  codigo_vendedor?: string;
 }
 
 export default function ConfiguracoesUsuarioScreen() {
@@ -41,10 +42,12 @@ export default function ConfiguracoesUsuarioScreen() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [newUsername, setNewUsername] = useState<string>('');
   const [newPassword, setNewPassword] = useState<string>('');
+  const [newCodigoVendedor, setNewCodigoVendedor] = useState<string>('');
   const [showNewPassword, setShowNewPassword] = useState<boolean>(false);
   const [editingUser, setEditingUser] = useState<UserData | null>(null);
   const [editUsername, setEditUsername] = useState<string>('');
   const [editPassword, setEditPassword] = useState<string>('');
+  const [editCodigoVendedor, setEditCodigoVendedor] = useState<string>('');
   const [showEditPassword, setShowEditPassword] = useState<boolean>(false);
 
   const handleMasterLogin = async () => {
@@ -64,15 +67,16 @@ export default function ConfiguracoesUsuarioScreen() {
 
   const handleCreateUser = async () => {
     if (!newUsername.trim() || !newPassword.trim()) {
-      Alert.alert('Erro', 'Preencha todos os campos.');
+      Alert.alert('Erro', 'Preencha todos os campos obrigatórios.');
       return;
     }
 
-    const success = await createUser(newUsername.trim(), newPassword, 'user');
+    const success = await createUser(newUsername.trim(), newPassword, 'user', newCodigoVendedor.trim() || undefined);
     if (success) {
       Alert.alert('Sucesso', 'Usuário criado com sucesso!');
       setNewUsername('');
       setNewPassword('');
+      setNewCodigoVendedor('');
     } else {
       Alert.alert('Erro', 'Usuário já existe ou erro ao criar.');
     }
@@ -82,20 +86,22 @@ export default function ConfiguracoesUsuarioScreen() {
     setEditingUser(user);
     setEditUsername(user.username);
     setEditPassword(user.password);
+    setEditCodigoVendedor(user.codigo_vendedor || '');
   };
 
   const handleUpdateUser = async () => {
     if (!editingUser || !editUsername.trim() || !editPassword.trim()) {
-      Alert.alert('Erro', 'Preencha todos os campos.');
+      Alert.alert('Erro', 'Preencha todos os campos obrigatórios.');
       return;
     }
 
-    const success = await updateUser(editingUser.id, editUsername.trim(), editPassword);
+    const success = await updateUser(editingUser.id, editUsername.trim(), editPassword, editCodigoVendedor.trim() || undefined);
     if (success) {
       Alert.alert('Sucesso', 'Usuário atualizado com sucesso!');
       setEditingUser(null);
       setEditUsername('');
       setEditPassword('');
+      setEditCodigoVendedor('');
     } else {
       Alert.alert('Erro', 'Nome de usuário já existe ou erro ao atualizar.');
     }
@@ -132,7 +138,12 @@ export default function ConfiguracoesUsuarioScreen() {
           ) : (
             <User size={20} color={Colors.primary} />
           )}
-          <Text style={styles.username}>{item.username}</Text>
+          <View style={styles.userDetails}>
+            <Text style={styles.username}>{item.username}</Text>
+            {item.codigo_vendedor && (
+              <Text style={styles.codigoVendedor}>Código: {item.codigo_vendedor}</Text>
+            )}
+          </View>
           <Text style={styles.userRole}>
             {item.role === 'master' ? 'Supervisor' : 'Usuário'}
           </Text>
@@ -288,6 +299,20 @@ export default function ConfiguracoesUsuarioScreen() {
                 </View>
               </View>
 
+              <View style={styles.inputContainer}>
+                <Text style={styles.inputLabel}>Código do Vendedor (Opcional)</Text>
+                <TextInput
+                  style={styles.input}
+                  value={newCodigoVendedor}
+                  onChangeText={setNewCodigoVendedor}
+                  placeholder="Digite o código do vendedor"
+                  placeholderTextColor={Colors.textSecondary}
+                  autoCapitalize="characters"
+                  autoCorrect={false}
+                  testID="new-codigo-vendedor-input"
+                />
+              </View>
+
               <TouchableOpacity
                 style={styles.createButton}
                 onPress={handleCreateUser}
@@ -356,6 +381,20 @@ export default function ConfiguracoesUsuarioScreen() {
                   </View>
                 </View>
 
+                <View style={styles.inputContainer}>
+                  <Text style={styles.inputLabel}>Código do Vendedor (Opcional)</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={editCodigoVendedor}
+                    onChangeText={setEditCodigoVendedor}
+                    placeholder="Digite o código do vendedor"
+                    placeholderTextColor={Colors.textSecondary}
+                    autoCapitalize="characters"
+                    autoCorrect={false}
+                    testID="edit-codigo-vendedor-input"
+                  />
+                </View>
+
                 <View style={styles.editActions}>
                   <TouchableOpacity
                     style={styles.cancelButton}
@@ -363,6 +402,7 @@ export default function ConfiguracoesUsuarioScreen() {
                       setEditingUser(null);
                       setEditUsername('');
                       setEditPassword('');
+                      setEditCodigoVendedor('');
                     }}
                     testID="cancel-edit-button"
                   >
@@ -615,5 +655,14 @@ const styles = StyleSheet.create({
     color: Colors.surface,
     fontSize: 16,
     fontWeight: '600',
+  },
+  userDetails: {
+    flex: 1,
+    marginLeft: 8,
+  },
+  codigoVendedor: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    marginTop: 2,
   },
 });

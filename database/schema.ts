@@ -75,6 +75,7 @@ export interface FormaPagamento {
 
 export interface Vendedor {
   id_vendedor?: number;
+  codigo_vendedor?: string;
   nome: string;
   email?: string;
   telefone?: string;
@@ -198,6 +199,7 @@ export class DatabaseManager {
 
       CREATE TABLE IF NOT EXISTS vendedores (
         id_vendedor INTEGER PRIMARY KEY AUTOINCREMENT,
+        codigo_vendedor TEXT,
         nome TEXT NOT NULL,
         email TEXT,
         telefone TEXT,
@@ -566,6 +568,7 @@ export class DatabaseManager {
       return [
         {
           id_vendedor: 1,
+          codigo_vendedor: 'V001',
           nome: 'Vendedor Padrão',
           email: 'vendedor@empresa.com',
           telefone: '(11) 99999-9999',
@@ -578,8 +581,8 @@ export class DatabaseManager {
 
   insertVendedor(vendedor: Omit<Vendedor, 'id_vendedor'>): number {
     const result = this.db.runSync(
-      'INSERT INTO vendedores (nome, email, telefone, ativo) VALUES (?, ?, ?, ?)',
-      [vendedor.nome, vendedor.email || null, vendedor.telefone || null, vendedor.ativo || 1]
+      'INSERT INTO vendedores (codigo_vendedor, nome, email, telefone, ativo) VALUES (?, ?, ?, ?, ?)',
+      [vendedor.codigo_vendedor || null, vendedor.nome, vendedor.email || null, vendedor.telefone || null, vendedor.ativo || 1]
     );
     return result.lastInsertRowId;
   }

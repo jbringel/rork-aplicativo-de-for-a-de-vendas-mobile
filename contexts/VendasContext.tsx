@@ -29,6 +29,7 @@ const initializeDatabase = async () => {
       updateCliente: () => {},
       deleteCliente: () => {},
       searchProdutos: () => [],
+      insertVendedor: () => Math.floor(Math.random() * 1000),
       insertPedido: () => Math.floor(Math.random() * 1000),
       insertItemPedido: () => Math.floor(Math.random() * 1000),
       insertPedidoPagamento: () => Math.floor(Math.random() * 1000),
@@ -187,6 +188,26 @@ export const [VendasContext, useVendas] = createContextHook(() => {
     try {
       const db = await initializeDatabase();
       
+      // Verificar se o vendedor precisa ser inserido no banco
+      let vendedorId = pedidoData.vendedor?.id_vendedor;
+      
+      if (pedidoData.vendedor && !pedidoData.vendedor.id_vendedor) {
+        // Vendedor temporário (baseado no usuário logado) - inserir no banco
+        const novoVendedorId = db.insertVendedor({
+          codigo_vendedor: pedidoData.vendedor.codigo_vendedor,
+          nome: pedidoData.vendedor.nome,
+          ativo: 1
+        });
+        vendedorId = novoVendedorId;
+        
+        // Atualizar lista de vendedores no estado
+        const novoVendedor = {
+          ...pedidoData.vendedor,
+          id_vendedor: novoVendedorId
+        };
+        setVendedores(prev => [...prev, novoVendedor]);
+      }
+      
       // Calcular valores
       const valorBruto = pedidoData.itens.reduce((total, item) => {
         return total + (item.quantidade * item.valor_unitario);
@@ -200,7 +221,7 @@ export const [VendasContext, useVendas] = createContextHook(() => {
 
       const pedido: Omit<Pedido, 'id_pedido'> = {
         id_cliente: pedidoData.cliente.id_cliente!,
-        id_vendedor: pedidoData.vendedor?.id_vendedor,
+        id_vendedor: vendedorId,
         data_pedido: new Date().toISOString().split('T')[0],
         status: 'Pendente',
         valor_bruto: valorBruto,

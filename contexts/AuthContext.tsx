@@ -7,6 +7,7 @@ interface User {
   username: string;
   password: string;
   role: 'master' | 'user';
+  codigo_vendedor?: string;
 }
 
 
@@ -21,6 +22,7 @@ const MASTER_USER: User = {
   username: 'Supervisor',
   password: 'infosystem@2025',
   role: 'master',
+  codigo_vendedor: 'SUP001',
 };
 
 export const [AuthContext, useAuth] = createContextHook(() => {
@@ -96,7 +98,7 @@ export const [AuthContext, useAuth] = createContextHook(() => {
     }
   }, []);
 
-  const createUser = useCallback(async (username: string, password: string, role: 'master' | 'user'): Promise<boolean> => {
+  const createUser = useCallback(async (username: string, password: string, role: 'master' | 'user', codigoVendedor?: string): Promise<boolean> => {
     try {
       // Verificar se usuário já existe
       const userExists = users.find(u => u.username === username);
@@ -109,6 +111,7 @@ export const [AuthContext, useAuth] = createContextHook(() => {
         username,
         password,
         role,
+        codigo_vendedor: codigoVendedor,
       };
       
       const updatedUsers = [...users, newUser];
@@ -122,7 +125,7 @@ export const [AuthContext, useAuth] = createContextHook(() => {
     }
   }, [users]);
 
-  const updateUser = useCallback(async (id: string, username: string, password: string): Promise<boolean> => {
+  const updateUser = useCallback(async (id: string, username: string, password: string, codigoVendedor?: string): Promise<boolean> => {
     try {
       // Não permitir alterar o usuário master
       if (id === 'master') {
@@ -136,7 +139,7 @@ export const [AuthContext, useAuth] = createContextHook(() => {
       }
       
       const updatedUsers = users.map(u => 
-        u.id === id ? { ...u, username, password } : u
+        u.id === id ? { ...u, username, password, codigo_vendedor: codigoVendedor } : u
       );
       
       setUsers(updatedUsers);
@@ -144,7 +147,7 @@ export const [AuthContext, useAuth] = createContextHook(() => {
       
       // Se o usuário atual foi alterado, atualizar também
       if (currentUser?.id === id) {
-        const updatedCurrentUser = { ...currentUser, username, password };
+        const updatedCurrentUser = { ...currentUser, username, password, codigo_vendedor: codigoVendedor };
         setCurrentUser(updatedCurrentUser);
         await AsyncStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(updatedCurrentUser));
       }

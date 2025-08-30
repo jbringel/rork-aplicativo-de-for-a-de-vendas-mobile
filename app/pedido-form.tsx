@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert,
 import { router } from 'expo-router';
 import { Save, X, Plus, Search, Trash2, User, CreditCard, Calendar } from 'lucide-react-native';
 import { useVendas } from '@/contexts/VendasContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { Cliente, Produto, FormaPagamento, Vendedor } from '@/database/schema';
 
 const Colors = {
@@ -35,6 +36,7 @@ interface PagamentoPedido {
 
 export default function PedidoFormScreen() {
   const { clientes, produtos, formasPagamento, vendedores, searchProdutos, createPedido, calculateParcelas } = useVendas();
+  const { currentUser } = useAuth();
   
   const [clienteSelecionado, setClienteSelecionado] = useState<Cliente | null>(null);
   const [vendedorSelecionado, setVendedorSelecionado] = useState<Vendedor | null>(null);
@@ -159,9 +161,21 @@ export default function PedidoFormScreen() {
     if (!validarPedido()) return;
 
     try {
+      // Usar o vendedor selecionado ou criar um vendedor baseado no usuário logado
+      let vendedorParaPedido = vendedorSelecionado;
+      
+      if (!vendedorParaPedido && currentUser?.codigo_vendedor) {
+        // Criar um vendedor temporário com os dados do usuário logado
+        vendedorParaPedido = {
+          codigo_vendedor: currentUser.codigo_vendedor,
+          nome: currentUser.username,
+          ativo: 1
+        };
+      }
+
       await createPedido({
         cliente: clienteSelecionado!,
-        vendedor: vendedorSelecionado || undefined,
+        vendedor: vendedorParaPedido || undefined,
         itens,
         pagamentos,
         observacoes,
@@ -204,16 +218,26 @@ export default function PedidoFormScreen() {
 
         {/* Seleção de Vendedor */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Vendedor (Opcional)</Text>
+          <Text style={styles.sectionTitle}>Vendedor</Text>
           <TouchableOpacity
             style={styles.selectorButton}
             onPress={() => setShowVendedorModal(true)}
           >
             <User color={Colors.secondary} size={20} />
             <Text style={styles.selectorText}>
-              {vendedorSelecionado ? vendedorSelecionado.nome : 'Selecionar vendedor'}
+              {vendedorSelecionado 
+                ? `${vendedorSelecionado.nome}${vendedorSelecionado.codigo_vendedor ? ` (${vendedorSelecionado.codigo_vendedor})` : ''}` 
+                : currentUser?.codigo_vendedor 
+                  ? `${currentUser.username} (${currentUser.codigo_vendedor})` 
+                  : 'Selecionar vendedor'
+              }
             </Text>
           </TouchableOpacity>
+          {currentUser?.codigo_vendedor && (
+            <Text style={styles.vendedorInfo}>
+              Vendedor padrão: {currentUser.username} - Código: {currentUser.codigo_vendedor}
+            </Text>
+          )}
         </View>
 
         {/* Itens do Pedido */}
@@ -450,10 +474,15 @@ export default function PedidoFormScreen() {
                   setShowVendedorModal(false);
                 }}
               >
-                <Text style={styles.vendedorItemNome}>{item.nome}</Text>
-                {item.email && (
-                  <Text style={styles.vendedorItemEmail}>{item.email}</Text>
-                )}
+                <View style={styles.vendedorItemInfo}>
+                  <Text style={styles.vendedorItemNome}>{item.nome}</Text>
+                  {item.codigo_vendedor && (
+                    <Text style={styles.vendedorItemCodigo}>Código: {item.codigo_vendedor}</Text>
+                  )}
+                  {item.email && (
+                    <Text style={styles.vendedorItemEmail}>{item.email}</Text>
+                  )}
+                </View>
               </TouchableOpacity>
             )}
           />
@@ -998,5 +1027,19 @@ const styles = StyleSheet.create({
     padding: 12,
     backgroundColor: Colors.background,
     borderRadius: 8,
+  },
+  vendedorInfo: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    marginTop: 8,
+    fontStyle: 'italic',
+  },
+  vendedorItemInfo: {
+    flex: 1,
+  },
+  vendedorItemCodigo: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    marginTop: 2,
   },
 });
