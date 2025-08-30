@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { router, useSegments } from 'expo-router';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Platform } from 'react-native';
 
 const Colors = {
   background: '#f8fafc',
@@ -25,20 +25,32 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
     console.log('AuthGuard - isAuthenticated:', isAuthenticated);
     console.log('AuthGuard - currentPath:', currentPath);
     console.log('AuthGuard - inAuthGroup:', inAuthGroup);
+    console.log('AuthGuard - Platform:', Platform.OS);
 
     if (!isAuthenticated) {
       if (!inLoginScreen && !inConfigScreen) {
         console.log('Redirecting to login');
         navigationRef.current = true;
-        router.replace('/login');
-        setTimeout(() => { navigationRef.current = false; }, 100);
+        
+        // No iOS, usar um delay maior para garantir que a navegação funcione
+        const delay = Platform.OS === 'ios' ? 200 : 100;
+        
+        setTimeout(() => {
+          router.replace('/login');
+          setTimeout(() => { navigationRef.current = false; }, delay);
+        }, 50);
       }
     } else {
       if (inLoginScreen || isRootPath) {
         console.log('Redirecting to tabs');
         navigationRef.current = true;
-        router.replace('/(tabs)');
-        setTimeout(() => { navigationRef.current = false; }, 100);
+        
+        const delay = Platform.OS === 'ios' ? 200 : 100;
+        
+        setTimeout(() => {
+          router.replace('/(tabs)');
+          setTimeout(() => { navigationRef.current = false; }, delay);
+        }, 50);
       }
     }
   }, [isAuthenticated, isLoading, segments]);

@@ -1,7 +1,7 @@
 import { Tabs } from "expo-router";
 import { BarChart3, Users, Package, ShoppingCart, RefreshCw, LogOut } from "lucide-react-native";
 import React from "react";
-import { TouchableOpacity, Alert } from "react-native";
+import { TouchableOpacity, Alert, Platform } from "react-native";
 import { useAuth } from "@/contexts/AuthContext";
 
 const Colors = {
@@ -17,28 +17,72 @@ export default function TabLayout() {
   const { logout, currentUser } = useAuth();
 
   const handleLogout = React.useCallback(() => {
-    Alert.alert(
-      'Sair',
-      'Deseja realmente sair do aplicativo?',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Sair',
-          style: 'destructive',
-          onPress: async () => {
-            await logout();
+    console.log('Logout button pressed');
+    
+    const performLogout = async () => {
+      try {
+        console.log('Performing logout...');
+        await logout();
+        console.log('Logout completed');
+      } catch (error) {
+        console.error('Error during logout:', error);
+      }
+    };
+
+    if (Platform.OS === 'ios') {
+      // No iOS, usar Alert com callback mais explícito
+      Alert.alert(
+        'Sair',
+        'Deseja realmente sair do aplicativo?',
+        [
+          { 
+            text: 'Cancelar', 
+            style: 'cancel',
+            onPress: () => console.log('Logout cancelled')
           },
-        },
-      ]
-    );
+          {
+            text: 'Sair',
+            style: 'destructive',
+            onPress: () => {
+              console.log('iOS logout confirmed');
+              performLogout();
+            },
+          },
+        ],
+        { cancelable: true }
+      );
+    } else {
+      // Android
+      Alert.alert(
+        'Sair',
+        'Deseja realmente sair do aplicativo?',
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          {
+            text: 'Sair',
+            style: 'destructive',
+            onPress: performLogout,
+          },
+        ]
+      );
+    }
   }, [logout]);
 
   const HeaderRight = React.useMemo(() => {
     return () => (
       <TouchableOpacity
         onPress={handleLogout}
-        style={{ marginRight: 16, padding: 4 }}
+        style={{ 
+          marginRight: 16, 
+          padding: 8,
+          minWidth: 44,
+          minHeight: 44,
+          justifyContent: 'center',
+          alignItems: 'center'
+        }}
         testID="logout-button"
+        activeOpacity={0.7}
+        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
       >
         <LogOut size={20} color={Colors.surface} />
       </TouchableOpacity>

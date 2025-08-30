@@ -90,11 +90,21 @@ export const [AuthContext, useAuth] = createContextHook(() => {
 
   const logout = useCallback(async (): Promise<void> => {
     try {
+      console.log('Starting logout process...');
+      
+      // Primeiro limpar o estado
       setCurrentUser(null);
       setIsAuthenticated(false);
+      
+      // Depois limpar o AsyncStorage
       await AsyncStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
+      
+      console.log('Logout process completed successfully');
     } catch (error) {
       console.error('Erro no logout:', error);
+      // Mesmo com erro, garantir que o estado seja limpo
+      setCurrentUser(null);
+      setIsAuthenticated(false);
     }
   }, []);
 
