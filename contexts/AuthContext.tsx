@@ -22,7 +22,7 @@ const MASTER_USER: User = {
   username: 'Supervisor',
   password: 'infosystem@2025',
   role: 'master',
-  codigo_vendedor: 'SUP001',
+  codigo_vendedor: '1',
 };
 
 export const [AuthContext, useAuth] = createContextHook(() => {

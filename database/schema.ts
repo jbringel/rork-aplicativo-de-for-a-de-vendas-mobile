@@ -292,6 +292,9 @@ export class DatabaseManager {
     
     // Executar migrações após criar as tabelas
     this.runMigrations();
+    
+    // Inserir supervisor padrão
+    this.insertDefaultSupervisor();
   }
 
   private runMigrations() {
@@ -308,8 +311,13 @@ export class DatabaseManager {
           console.log('Adicionando coluna codigo_vendedor à tabela vendedores...');
           this.db.execSync('ALTER TABLE vendedores ADD COLUMN codigo_vendedor TEXT');
           console.log('Coluna codigo_vendedor adicionada com sucesso!');
+          
+          // Inserir vendedor supervisor padrão se não existir
+          this.insertDefaultSupervisor();
         } else {
           console.log('Coluna codigo_vendedor já existe na tabela vendedores');
+          // Verificar se supervisor existe
+          this.insertDefaultSupervisor();
         }
       } else {
         console.log('Tabela vendedores não existe ainda, será criada pelo CREATE TABLE');
@@ -366,6 +374,29 @@ export class DatabaseManager {
         ('004', 'Produto D', 'Categoria 2', 120.00, 15),
         ('005', 'Produto E', 'Categoria 3', 199.90, 8);
       `);
+    }
+  }
+  
+  private insertDefaultSupervisor() {
+    try {
+      // Verificar se já existe um supervisor com código "1"
+      const existingSupervisor = this.db.getFirstSync(
+        'SELECT COUNT(*) as count FROM vendedores WHERE codigo_vendedor = ?',
+        ['1']
+      ) as { count: number };
+      
+      if (existingSupervisor.count === 0) {
+        console.log('Inserindo supervisor padrão...');
+        this.db.runSync(
+          'INSERT INTO vendedores (codigo_vendedor, nome, email, ativo) VALUES (?, ?, ?, ?)',
+          ['1', 'Supervisor', 'supervisor@empresa.com', 1]
+        );
+        console.log('Supervisor padrão inserido com sucesso!');
+      } else {
+        console.log('Supervisor padrão já existe');
+      }
+    } catch (error) {
+      console.error('Erro ao inserir supervisor padrão:', error);
     }
   }
 
@@ -597,9 +628,9 @@ export class DatabaseManager {
       return [
         {
           id_vendedor: 1,
-          codigo_vendedor: 'V001',
-          nome: 'Vendedor Padrão',
-          email: 'vendedor@empresa.com',
+          codigo_vendedor: '1',
+          nome: 'Supervisor',
+          email: 'supervisor@empresa.com',
           telefone: '(11) 99999-9999',
           ativo: 1
         }
