@@ -286,9 +286,29 @@ export class DatabaseManager {
       );
     `);
 
+    // Executar migrações
+    this.runMigrations();
+    
     // Inserir formas de pagamento padrão
     this.insertDefaultPaymentMethods();
     this.insertSampleData();
+  }
+
+  private runMigrations() {
+    try {
+      // Verificar se a coluna codigo_vendedor existe na tabela vendedores
+      const tableInfo = this.db.getAllSync("PRAGMA table_info(vendedores)") as any[];
+      const hasCodigoVendedor = tableInfo.some(column => column.name === 'codigo_vendedor');
+      
+      if (!hasCodigoVendedor) {
+        console.log('Adicionando coluna codigo_vendedor à tabela vendedores...');
+        this.db.execSync('ALTER TABLE vendedores ADD COLUMN codigo_vendedor TEXT');
+        console.log('Coluna codigo_vendedor adicionada com sucesso!');
+      }
+    } catch (error) {
+      console.error('Erro ao executar migrações:', error);
+      // Se a tabela não existe, será criada pelo CREATE TABLE IF NOT EXISTS
+    }
   }
 
   private insertDefaultPaymentMethods() {
