@@ -92,12 +92,12 @@ export const [AuthContext, useAuth] = createContextHook(() => {
     try {
       console.log('Starting logout process...');
       
-      // Primeiro limpar o estado
+      // Limpar o AsyncStorage primeiro
+      await AsyncStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
+      
+      // Depois limpar o estado
       setCurrentUser(null);
       setIsAuthenticated(false);
-      
-      // Depois limpar o AsyncStorage
-      await AsyncStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
       
       console.log('Logout process completed successfully');
     } catch (error) {
@@ -105,7 +105,28 @@ export const [AuthContext, useAuth] = createContextHook(() => {
       // Mesmo com erro, garantir que o estado seja limpo
       setCurrentUser(null);
       setIsAuthenticated(false);
+      
+      // Tentar limpar o AsyncStorage mesmo com erro
+      try {
+        await AsyncStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
+      } catch (storageError) {
+        console.error('Erro ao limpar AsyncStorage:', storageError);
+      }
     }
+  }, []);
+
+  const forceLogout = useCallback((): void => {
+    console.log('Force logout initiated...');
+    // Limpar estado imediatamente sem aguardar AsyncStorage
+    setCurrentUser(null);
+    setIsAuthenticated(false);
+    
+    // Tentar limpar AsyncStorage em background
+    AsyncStorage.removeItem(STORAGE_KEYS.CURRENT_USER).catch(error => {
+      console.error('Erro ao limpar AsyncStorage no force logout:', error);
+    });
+    
+    console.log('Force logout completed');
   }, []);
 
   const createUser = useCallback(async (username: string, password: string, role: 'master' | 'user', codigoVendedor?: string): Promise<boolean> => {
@@ -198,11 +219,12 @@ export const [AuthContext, useAuth] = createContextHook(() => {
     users,
     login,
     logout,
+    forceLogout,
     createUser,
     updateUser,
     deleteUser,
     isLoading,
-  }), [isAuthenticated, currentUser, users, login, logout, createUser, updateUser, deleteUser, isLoading]);
+  }), [isAuthenticated, currentUser, users, login, logout, forceLogout, createUser, updateUser, deleteUser, isLoading]);
 
   return contextValue;
 });

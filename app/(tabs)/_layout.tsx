@@ -14,59 +14,56 @@ const Colors = {
 };
 
 export default function TabLayout() {
-  const { logout, currentUser } = useAuth();
+  const { logout, forceLogout, currentUser } = useAuth();
 
   const handleLogout = React.useCallback(() => {
-    console.log('Logout button pressed');
+    console.log('Logout button pressed - Platform:', Platform.OS);
     
     const performLogout = async () => {
       try {
         console.log('Performing logout...');
         await logout();
-        console.log('Logout completed');
+        console.log('Logout completed successfully');
       } catch (error) {
         console.error('Error during logout:', error);
+        console.log('Attempting force logout as fallback...');
+        
+        // Usar force logout como fallback
+        try {
+          forceLogout();
+          console.log('Force logout completed');
+        } catch (forceError) {
+          console.error('Force logout also failed:', forceError);
+          Alert.alert('Erro', 'Erro crítico no logout. Reinicie o aplicativo.');
+        }
       }
     };
 
-    if (Platform.OS === 'ios') {
-      // No iOS, usar Alert com callback mais explícito
-      Alert.alert(
-        'Sair',
-        'Deseja realmente sair do aplicativo?',
-        [
-          { 
-            text: 'Cancelar', 
-            style: 'cancel',
-            onPress: () => console.log('Logout cancelled')
+    // Usar a mesma implementação para todas as plataformas
+    Alert.alert(
+      'Sair',
+      'Deseja realmente sair do aplicativo?',
+      [
+        { 
+          text: 'Cancelar', 
+          style: 'cancel',
+          onPress: () => console.log('Logout cancelled')
+        },
+        {
+          text: 'Sair',
+          style: 'destructive',
+          onPress: () => {
+            console.log('Logout confirmed for platform:', Platform.OS);
+            performLogout();
           },
-          {
-            text: 'Sair',
-            style: 'destructive',
-            onPress: () => {
-              console.log('iOS logout confirmed');
-              performLogout();
-            },
-          },
-        ],
-        { cancelable: true }
-      );
-    } else {
-      // Android
-      Alert.alert(
-        'Sair',
-        'Deseja realmente sair do aplicativo?',
-        [
-          { text: 'Cancelar', style: 'cancel' },
-          {
-            text: 'Sair',
-            style: 'destructive',
-            onPress: performLogout,
-          },
-        ]
-      );
-    }
-  }, [logout]);
+        },
+      ],
+      { 
+        cancelable: true,
+        userInterfaceStyle: 'light'
+      }
+    );
+  }, [logout, forceLogout]);
 
   const HeaderRight = React.useMemo(() => {
     return () => (

@@ -32,11 +32,15 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
         console.log('Redirecting to login');
         navigationRef.current = true;
         
-        // No iOS, usar um delay maior para garantir que a navegação funcione
-        const delay = Platform.OS === 'ios' ? 200 : 100;
+        // Usar delays diferentes para cada plataforma
+        const delay = Platform.OS === 'ios' ? 300 : Platform.OS === 'web' ? 100 : 150;
         
         setTimeout(() => {
-          router.replace('/login');
+          try {
+            router.replace('/login');
+          } catch (error) {
+            console.error('Error navigating to login:', error);
+          }
           setTimeout(() => { navigationRef.current = false; }, delay);
         }, 50);
       }
@@ -45,10 +49,14 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
         console.log('Redirecting to tabs');
         navigationRef.current = true;
         
-        const delay = Platform.OS === 'ios' ? 200 : 100;
+        const delay = Platform.OS === 'ios' ? 300 : Platform.OS === 'web' ? 100 : 150;
         
         setTimeout(() => {
-          router.replace('/(tabs)');
+          try {
+            router.replace('/(tabs)');
+          } catch (error) {
+            console.error('Error navigating to tabs:', error);
+          }
           setTimeout(() => { navigationRef.current = false; }, delay);
         }, 50);
       }
