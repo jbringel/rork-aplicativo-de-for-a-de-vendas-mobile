@@ -7,6 +7,7 @@ import { View, Text, StyleSheet } from "react-native";
 import { VendasContext } from "@/contexts/VendasContext";
 import { AuthContext } from "@/contexts/AuthContext";
 import AuthGuard from "@/components/AuthGuard";
+import { trpc, trpcClient } from "@/lib/trpc";
 
 class ErrorBoundary extends Component<{children: ReactNode}, {hasError: boolean, error?: Error}> {
   constructor(props: {children: ReactNode}) {
@@ -84,17 +85,19 @@ export default function RootLayout() {
 
   return (
     <ErrorBoundary>
-      <QueryClientProvider client={queryClient}>
-        <AuthContext>
-          <AuthGuard>
-            <VendasContext>
-              <GestureHandlerRootView style={{ flex: 1 }}>
-                <RootLayoutNav />
-              </GestureHandlerRootView>
-            </VendasContext>
-          </AuthGuard>
-        </AuthContext>
-      </QueryClientProvider>
+      <trpc.Provider client={trpcClient} queryClient={queryClient}>
+        <QueryClientProvider client={queryClient}>
+          <AuthContext>
+            <AuthGuard>
+              <VendasContext>
+                <GestureHandlerRootView style={{ flex: 1 }}>
+                  <RootLayoutNav />
+                </GestureHandlerRootView>
+              </VendasContext>
+            </AuthGuard>
+          </AuthContext>
+        </QueryClientProvider>
+      </trpc.Provider>
     </ErrorBoundary>
   );
 }
