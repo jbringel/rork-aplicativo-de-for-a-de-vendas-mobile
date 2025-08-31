@@ -1,84 +1,160 @@
 import createContextHook from '@nkzw/create-context-hook';
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { Platform } from 'react-native';
 
-// Import types first
+// Import types and database manager directly
 import type { Cliente, Produto, Pedido, FormaPagamento, Vendedor, Sincronizacao } from '@/database/schema';
+import { dbManager } from '@/database/schema';
 
-// Lazy import database manager to avoid initialization issues
-let dbManager: any = null;
+// Create mock database for web or error cases
+const createMockDatabase = () => {
+  console.log('Criando mock database...');
+  return {
+    getClientes: () => {
+      console.log('Mock: getClientes chamado');
+      return [
+        {
+          id_cliente: 1,
+          nome_razao: 'João Silva',
+          cpf_cnpj: '123.456.789-00',
+          telefone: '(11) 99999-9999',
+          email: 'joao@email.com',
+          limite_credito: 5000.00,
+          saldo_devedor: 0,
+          ativo: 1
+        },
+        {
+          id_cliente: 2,
+          nome_razao: 'Maria Santos',
+          cpf_cnpj: '987.654.321-00',
+          telefone: '(11) 88888-8888',
+          email: 'maria@email.com',
+          limite_credito: 3000.00,
+          saldo_devedor: 0,
+          ativo: 1
+        }
+      ];
+    },
+    getProdutos: () => {
+      console.log('Mock: getProdutos chamado');
+      return [
+        {
+          id_produto: 1,
+          codigo: '001',
+          nome: 'Produto A',
+          categoria: 'Categoria 1',
+          preco_venda: 25.90,
+          estoque_atual: 100,
+          unidade_medida: 'UN',
+          ativo: 1
+        },
+        {
+          id_produto: 2,
+          codigo: '002',
+          nome: 'Produto B',
+          categoria: 'Categoria 1',
+          preco_venda: 45.50,
+          estoque_atual: 50,
+          unidade_medida: 'UN',
+          ativo: 1
+        }
+      ];
+    },
+    getPedidos: () => {
+      console.log('Mock: getPedidos chamado');
+      return [];
+    },
+    getFormasPagamento: () => {
+      console.log('Mock: getFormasPagamento chamado');
+      return [
+        {
+          id_forma_pagamento: 1,
+          descricao: 'À Vista',
+          tipo: 'dinheiro',
+          numero_max_parcelas: 1,
+          parcel_intervalo_dias: 0,
+          ativo: 1
+        },
+        {
+          id_forma_pagamento: 2,
+          descricao: 'Cartão de Crédito',
+          tipo: 'cartao',
+          numero_max_parcelas: 12,
+          parcel_intervalo_dias: 30,
+          ativo: 1
+        }
+      ];
+    },
+    getVendedores: () => {
+      console.log('Mock: getVendedores chamado');
+      return [
+        {
+          id_vendedor: 1,
+          codigo_vendedor: '1',
+          nome: 'Supervisor',
+          email: 'supervisor@empresa.com',
+          telefone: '(11) 99999-9999',
+          ativo: 1
+        }
+      ];
+    },
+    getSincronizacoes: () => {
+      console.log('Mock: getSincronizacoes chamado');
+      return [];
+    },
+    getDashboardData: () => {
+      console.log('Mock: getDashboardData chamado');
+      return { 
+        vendasHoje: { total: 0, valor: 0 }, 
+        vendasMes: { total: 0, valor: 0 }, 
+        produtosMaisVendidos: [], 
+        pedidosRecentes: [] 
+      };
+    },
+    insertCliente: () => Math.floor(Math.random() * 1000),
+    updateCliente: () => {},
+    deleteCliente: () => {},
+    searchProdutos: () => [],
+    insertVendedor: () => Math.floor(Math.random() * 1000),
+    insertPedido: () => Math.floor(Math.random() * 1000),
+    insertItemPedido: () => Math.floor(Math.random() * 1000),
+    insertPedidoPagamento: () => Math.floor(Math.random() * 1000),
+    getItensPedido: () => [],
+    getPagamentosPedido: () => [],
+    calculateParcelas: (valor: number, parcelas: number) => {
+      const valorParcela = valor / parcelas;
+      return Array.from({ length: parcelas }, (_, i) => ({
+        numero: i + 1,
+        valor: valorParcela,
+        vencimento: new Date(Date.now() + (i * 30 * 24 * 60 * 60 * 1000)).toISOString().split('T')[0]
+      }));
+    },
+    insertSincronizacao: () => Math.floor(Math.random() * 1000),
+    updateSincronizacao: () => {}
+  };
+};
 
-const initializeDatabase = async () => {
-  if (dbManager) return dbManager;
-  
+// Initialize database manager
+const initializeDatabase = () => {
   try {
-    console.log('Inicializando database manager...');
-    const { dbManager: db } = await import('@/database/schema');
-    dbManager = db;
-    console.log('Database manager inicializado com sucesso');
-    return dbManager;
+    console.log('Inicializando database manager... Platform:', Platform.OS);
+    
+    if (Platform.OS === 'web') {
+      console.log('Usando mock database para web');
+      return createMockDatabase();
+    }
+    
+    if (dbManager) {
+      console.log('Database manager inicializado com sucesso');
+      return dbManager;
+    } else {
+      console.warn('Database manager não disponível, usando mock');
+      return createMockDatabase();
+    }
   } catch (error) {
-    console.error('Erro ao importar database:', error);
+    console.error('Erro ao inicializar database:', error);
     console.log('Usando mock database como fallback');
-    
-    // Return mock database for web or error cases
-    const mockDb = {
-      getClientes: () => {
-        console.log('Mock: getClientes chamado');
-        return [];
-      },
-      getProdutos: () => {
-        console.log('Mock: getProdutos chamado');
-        return [];
-      },
-      getPedidos: () => {
-        console.log('Mock: getPedidos chamado');
-        return [];
-      },
-      getFormasPagamento: () => {
-        console.log('Mock: getFormasPagamento chamado');
-        return [];
-      },
-      getVendedores: () => {
-        console.log('Mock: getVendedores chamado');
-        return [];
-      },
-      getSincronizacoes: () => {
-        console.log('Mock: getSincronizacoes chamado');
-        return [];
-      },
-      getDashboardData: () => {
-        console.log('Mock: getDashboardData chamado');
-        return { 
-          vendasHoje: { total: 0, valor: 0 }, 
-          vendasMes: { total: 0, valor: 0 }, 
-          produtosMaisVendidos: [], 
-          pedidosRecentes: [] 
-        };
-      },
-      insertCliente: () => Math.floor(Math.random() * 1000),
-      updateCliente: () => {},
-      deleteCliente: () => {},
-      searchProdutos: () => [],
-      insertVendedor: () => Math.floor(Math.random() * 1000),
-      insertPedido: () => Math.floor(Math.random() * 1000),
-      insertItemPedido: () => Math.floor(Math.random() * 1000),
-      insertPedidoPagamento: () => Math.floor(Math.random() * 1000),
-      getItensPedido: () => [],
-      getPagamentosPedido: () => [],
-      calculateParcelas: (valor: number, parcelas: number) => {
-        const valorParcela = valor / parcelas;
-        return Array.from({ length: parcelas }, (_, i) => ({
-          numero: i + 1,
-          valor: valorParcela,
-          vencimento: new Date(Date.now() + (i * 30 * 24 * 60 * 60 * 1000)).toISOString().split('T')[0]
-        }));
-      },
-      insertSincronizacao: () => Math.floor(Math.random() * 1000),
-      updateSincronizacao: () => {}
-    };
-    
-    dbManager = mockDb;
-    return mockDb;
+    return createMockDatabase();
   }
 };
 
@@ -98,43 +174,38 @@ export const [VendasContext, useVendas] = createContextHook(() => {
       setIsLoading(true);
       console.log('Iniciando carregamento de dados...');
       
-      // Initialize database manager with timeout
-      const dbPromise = initializeDatabase();
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Database initialization timeout')), 10000)
-      );
-      
-      const db = await Promise.race([dbPromise, timeoutPromise]) as any;
+      // Initialize database manager
+      const db = initializeDatabase();
       
       // Aguardar um pouco para garantir que o banco está pronto
       await new Promise(resolve => setTimeout(resolve, 200));
       
       console.log('Carregando clientes...');
-      const clientesData = await Promise.resolve(db.getClientes());
+      const clientesData = db.getClientes();
       console.log('Clientes carregados:', clientesData?.length || 0);
       
       console.log('Carregando produtos...');
-      const produtosData = await Promise.resolve(db.getProdutos());
+      const produtosData = db.getProdutos();
       console.log('Produtos carregados:', produtosData?.length || 0);
       
       console.log('Carregando pedidos...');
-      const pedidosData = await Promise.resolve(db.getPedidos());
+      const pedidosData = db.getPedidos();
       console.log('Pedidos carregados:', pedidosData?.length || 0);
       
       console.log('Carregando formas de pagamento...');
-      const formasData = await Promise.resolve(db.getFormasPagamento());
+      const formasData = db.getFormasPagamento();
       console.log('Formas de pagamento carregadas:', formasData?.length || 0);
       
       console.log('Carregando vendedores...');
-      const vendedoresData = await Promise.resolve(db.getVendedores());
+      const vendedoresData = db.getVendedores();
       console.log('Vendedores carregados:', vendedoresData?.length || 0);
       
       console.log('Carregando sincronizações...');
-      const syncData = await Promise.resolve(db.getSincronizacoes());
+      const syncData = db.getSincronizacoes();
       console.log('Sincronizações carregadas:', syncData?.length || 0);
       
       console.log('Carregando dashboard data...');
-      const dashData = await Promise.resolve(db.getDashboardData());
+      const dashData = db.getDashboardData();
       console.log('Dashboard data:', dashData);
 
       // Atualizar estado de forma segura
@@ -189,7 +260,7 @@ export const [VendasContext, useVendas] = createContextHook(() => {
 
   const addCliente = useCallback(async (cliente: Omit<Cliente, 'id_cliente'>) => {
     try {
-      const db = await initializeDatabase();
+      const db = initializeDatabase();
       const id = db.insertCliente(cliente);
       const novoCliente = { ...cliente, id_cliente: id };
       setClientes(prev => [...prev, novoCliente]);
@@ -202,7 +273,7 @@ export const [VendasContext, useVendas] = createContextHook(() => {
 
   const updateCliente = useCallback(async (cliente: Cliente) => {
     try {
-      const db = await initializeDatabase();
+      const db = initializeDatabase();
       db.updateCliente(cliente);
       setClientes(prev => prev.map(c => c.id_cliente === cliente.id_cliente ? cliente : c));
     } catch (error) {
@@ -213,7 +284,7 @@ export const [VendasContext, useVendas] = createContextHook(() => {
 
   const deleteCliente = useCallback(async (id: number) => {
     try {
-      const db = await initializeDatabase();
+      const db = initializeDatabase();
       db.deleteCliente(id);
       setClientes(prev => prev.filter(c => c.id_cliente !== id));
     } catch (error) {
@@ -224,7 +295,7 @@ export const [VendasContext, useVendas] = createContextHook(() => {
 
   const searchProdutos = useCallback(async (query: string) => {
     try {
-      const db = await initializeDatabase();
+      const db = initializeDatabase();
       return db.searchProdutos(query);
     } catch (error) {
       console.error('Erro ao buscar produtos:', error);
@@ -252,7 +323,7 @@ export const [VendasContext, useVendas] = createContextHook(() => {
     observacoes?: string;
   }) => {
     try {
-      const db = await initializeDatabase();
+      const db = initializeDatabase();
       
       // Verificar se o vendedor precisa ser inserido no banco
       let vendedorId = pedidoData.vendedor?.id_vendedor;
@@ -341,7 +412,7 @@ export const [VendasContext, useVendas] = createContextHook(() => {
 
   const getPedidoDetalhes = useCallback(async (idPedido: number) => {
     try {
-      const db = await initializeDatabase();
+      const db = initializeDatabase();
       const itens = db.getItensPedido(idPedido);
       const pagamentos = db.getPagamentosPedido(idPedido);
       return { itens, pagamentos };
@@ -353,7 +424,7 @@ export const [VendasContext, useVendas] = createContextHook(() => {
 
   // Função para calcular parcelas
   const calculateParcelas = useCallback(async (valorLiquido: number, numeroParcelas: number, formaPagamento: FormaPagamento, primeiraParcela?: Date) => {
-    const db = await initializeDatabase();
+    const db = initializeDatabase();
     const intervaloDias = formaPagamento.parcel_intervalo_dias || 30;
     const dataInicial = primeiraParcela || new Date();
     return db.calculateParcelas(valorLiquido, numeroParcelas, intervaloDias, dataInicial);
@@ -363,7 +434,7 @@ export const [VendasContext, useVendas] = createContextHook(() => {
   const iniciarSincronizacao = useCallback(async (tipo: string) => {
     try {
       setIsSyncing(true);
-      const db = await initializeDatabase();
+      const db = initializeDatabase();
       const syncId = db.insertSincronizacao({
         tipo,
         inicio: new Date().toISOString(),
