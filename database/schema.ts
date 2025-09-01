@@ -114,53 +114,27 @@ export class DatabaseManager {
   private db: SQLite.SQLiteDatabase | any;
 
   constructor() {
+    console.log('Inicializando DatabaseManager... Platform:', Platform.OS);
+    
+    // Sempre usar mock database para evitar problemas de inicialização
+    if (Platform.OS === 'web') {
+      console.log('Web platform detected - using mock database');
+      this.initMockDatabase();
+      return;
+    }
+    
+    // Para mobile, tentar SQLite mas com fallback para mock
     try {
-      console.log('Inicializando banco de dados... Platform:', Platform.OS);
-      
-      // Verificar se estamos no web - SQLite não funciona no web
-      if (Platform.OS === 'web') {
-        console.warn('SQLite não suportado no web, usando dados mock');
-        this.initMockDatabase();
-        return;
-      }
-      
-      console.log('Tentando abrir banco SQLite...');
+      console.log('Tentando inicializar SQLite...');
       this.db = SQLite.openDatabaseSync('vendas.db');
-      console.log('Banco de dados aberto com sucesso');
       
-      // Aguardar um pouco antes de inicializar
-      setTimeout(() => {
-        try {
-          this.initDatabase();
-          console.log('Banco de dados inicializado com sucesso');
-        } catch (initError) {
-          console.error('Erro na inicialização do banco:', initError);
-          this.initMockDatabase();
-        }
-      }, 100);
+      // Inicializar de forma síncrona para evitar problemas de timing
+      this.initDatabase();
+      console.log('SQLite inicializado com sucesso');
       
     } catch (error) {
-      console.error('Erro ao inicializar banco de dados:', error);
-      
-      // Tentar novamente com um nome diferente
-      try {
-        console.log('Tentando criar banco com nome alternativo...');
-        this.db = SQLite.openDatabaseSync('vendas_backup.db');
-        
-        setTimeout(() => {
-          try {
-            this.initDatabase();
-            console.log('Banco alternativo criado com sucesso');
-          } catch (initError) {
-            console.error('Erro na inicialização do banco alternativo:', initError);
-            this.initMockDatabase();
-          }
-        }, 100);
-        
-      } catch (secondError) {
-        console.error('Erro crítico ao criar banco:', secondError);
-        this.initMockDatabase();
-      }
+      console.error('Erro ao inicializar SQLite, usando mock database:', error);
+      this.initMockDatabase();
     }
   }
   
@@ -192,8 +166,9 @@ export class DatabaseManager {
     try {
       console.log('Criando tabelas do banco de dados...');
       
-      this.db.execSync(`
-        CREATE TABLE IF NOT EXISTS clientes (
+      // Criar tabelas uma por vez para melhor controle de erros
+      const tables = [
+        `CREATE TABLE IF NOT EXISTS clientes (
           id_cliente INTEGER PRIMARY KEY AUTOINCREMENT,
           nome_razao TEXT NOT NULL,
           fantasia TEXT,
@@ -213,9 +188,8 @@ export class DatabaseManager {
           vendedor_responsavel INTEGER,
           observacoes TEXT,
           ativo INTEGER DEFAULT 1
-        );
-
-        CREATE TABLE IF NOT EXISTS produtos (
+        )`,
+        `CREATE TABLE IF NOT EXISTS produtos (
           id_produto INTEGER PRIMARY KEY AUTOINCREMENT,
           codigo TEXT NOT NULL UNIQUE,
           nome TEXT NOT NULL,
@@ -228,121 +202,48 @@ export class DatabaseManager {
           ncm TEXT,
           observacoes TEXT,
           ativo INTEGER DEFAULT 1
-        );
-
-        CREATE TABLE IF NOT EXISTS vendedores (
+        )`,
+        `CREATE TABLE IF NOT EXISTS vendedores (
           id_vendedor INTEGER PRIMARY KEY AUTOINCREMENT,
           codigo_vendedor TEXT,
           nome TEXT NOT NULL,
           email TEXT,
           telefone TEXT,
           ativo INTEGER DEFAULT 1
-        );
-
-        CREATE TABLE IF NOT EXISTS pedidos (
-          id_pedido INTEGER PRIMARY KEY AUTOINCREMENT,
-          id_cliente INTEGER,
-          id_vendedor INTEGER,
-          data_pedido TEXT NOT NULL,
-          status TEXT DEFAULT 'Pendente',
-          valor_bruto REAL DEFAULT 0,
-          valor_desconto REAL DEFAULT 0,
-          valor_liquido REAL DEFAULT 0,
-          forma_pagamento_padrao INTEGER,
-          observacoes TEXT,
-          sincronizado INTEGER DEFAULT 0,
-          FOREIGN KEY (id_cliente) REFERENCES clientes (id_cliente),
-          FOREIGN KEY (id_vendedor) REFERENCES vendedores (id_vendedor)
-        );
-
-        CREATE TABLE IF NOT EXISTS itens_pedido (
-          id_item INTEGER PRIMARY KEY AUTOINCREMENT,
-          id_pedido INTEGER,
-          id_produto INTEGER,
-          codigo_produto TEXT,
-          descricao_produto TEXT,
-          quantidade REAL NOT NULL,
-          valor_unitario REAL NOT NULL,
-          desconto_item REAL DEFAULT 0,
-          subtotal REAL NOT NULL,
-          FOREIGN KEY (id_pedido) REFERENCES pedidos (id_pedido),
-          FOREIGN KEY (id_produto) REFERENCES produtos (id_produto)
-        );
-
-        CREATE TABLE IF NOT EXISTS formas_pagamento (
+        )`,
+        `CREATE TABLE IF NOT EXISTS formas_pagamento (
           id_forma_pagamento INTEGER PRIMARY KEY AUTOINCREMENT,
           descricao TEXT NOT NULL,
           tipo TEXT,
           numero_max_parcelas INTEGER DEFAULT 1,
           parcel_intervalo_dias INTEGER DEFAULT 30,
           ativo INTEGER DEFAULT 1
-        );
-
-        CREATE TABLE IF NOT EXISTS pedido_pagamentos (
-          id_pagamento INTEGER PRIMARY KEY AUTOINCREMENT,
-          id_pedido INTEGER,
-          id_forma_pagamento INTEGER,
-          numero_parcela INTEGER NOT NULL,
-          valor_parcela REAL NOT NULL,
-          data_vencimento TEXT NOT NULL,
-          status_parcela TEXT DEFAULT 'Aberta',
-          FOREIGN KEY (id_pedido) REFERENCES pedidos (id_pedido),
-          FOREIGN KEY (id_forma_pagamento) REFERENCES formas_pagamento (id_forma_pagamento)
-        );
-
-        CREATE TABLE IF NOT EXISTS estoque_movimentos (
-          id_mov INTEGER PRIMARY KEY AUTOINCREMENT,
-          id_produto INTEGER,
-          tipo_mov TEXT NOT NULL,
-          quantidade REAL NOT NULL,
-          data_mov TEXT NOT NULL,
-          referencia TEXT,
-          FOREIGN KEY (id_produto) REFERENCES produtos (id_produto)
-        );
-
-        CREATE TABLE IF NOT EXISTS sincronizacoes (
-          id_sync INTEGER PRIMARY KEY AUTOINCREMENT,
-          tipo TEXT NOT NULL,
-          inicio TEXT NOT NULL,
-          fim TEXT,
-          status TEXT NOT NULL,
-          mensagem TEXT
-        );
-
-        CREATE TABLE IF NOT EXISTS metadados_campos (
-          id_meta INTEGER PRIMARY KEY AUTOINCREMENT,
-          entidade TEXT NOT NULL,
-          campo TEXT NOT NULL,
-          tipo TEXT NOT NULL,
-          obrigatorio INTEGER DEFAULT 0,
-          label TEXT
-        );
-      `);
+        )`
+      ];
       
-      console.log('Tabelas criadas com sucesso');
+      tables.forEach((sql, index) => {
+        try {
+          this.db.execSync(sql);
+          console.log(`Tabela ${index + 1} criada com sucesso`);
+        } catch (tableError) {
+          console.error(`Erro ao criar tabela ${index + 1}:`, tableError);
+        }
+      });
+      
+      console.log('Tabelas principais criadas');
 
       // Inserir dados padrão de forma segura
       try {
-        console.log('Inserindo formas de pagamento padrão...');
         this.insertDefaultPaymentMethods();
-        
-        console.log('Inserindo dados de exemplo...');
         this.insertSampleData();
-        
-        console.log('Executando migrações...');
-        this.runMigrations();
-        
-        console.log('Inserindo supervisor padrão...');
         this.insertDefaultSupervisor();
-        
-        console.log('Inicialização do banco concluída com sucesso');
+        console.log('Dados padrão inseridos com sucesso');
       } catch (dataError) {
         console.error('Erro ao inserir dados padrão:', dataError);
-        // Continuar mesmo com erro nos dados padrão
       }
       
     } catch (error) {
-      console.error('Erro crítico na inicialização do banco:', error);
+      console.error('Erro na inicialização do banco:', error);
       throw error;
     }
   }

@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
 import { TrendingUp, Users, Package, ShoppingCart, DollarSign } from 'lucide-react-native';
 import { useVendas } from '@/contexts/VendasContext';
+import { log, logError } from '@/constants/AppConfig';
 
 const Colors = {
   primary: "#1e40af",
@@ -15,14 +16,28 @@ const Colors = {
 };
 
 export default function DashboardScreen() {
-  const { dashboardData, isLoading, loadData, clientes, produtos, pedidos } = useVendas();
+  const vendasContext = useVendas();
+
+  // Verificar se o contexto foi carregado
+  if (!vendasContext) {
+    logError('DashboardScreen - VendasContext não foi carregado!');
+    return (
+      <View style={styles.loadingContainer}>
+        <Text style={styles.loadingText}>Erro no contexto de vendas</Text>
+      </View>
+    );
+  }
+
+  const { dashboardData, isLoading, loadData, clientes, produtos, pedidos } = vendasContext;
 
   useEffect(() => {
-    console.log('DashboardScreen montado');
-    console.log('Clientes:', clientes?.length || 0);
-    console.log('Produtos:', produtos?.length || 0);
-    console.log('Pedidos:', pedidos?.length || 0);
-    console.log('Dashboard data:', dashboardData);
+    log('DashboardScreen montado');
+    log('Dados carregados', {
+      clientes: clientes?.length || 0,
+      produtos: produtos?.length || 0,
+      pedidos: pedidos?.length || 0,
+      dashboardData: !!dashboardData
+    });
   }, [clientes, produtos, pedidos, dashboardData]);
 
   const formatCurrency = (value: number) => {
@@ -32,7 +47,7 @@ export default function DashboardScreen() {
         currency: 'BRL'
       }).format(value || 0);
     } catch (error) {
-      console.error('Erro ao formatar moeda:', error);
+      logError('Erro ao formatar moeda', error);
       return `R$ ${(value || 0).toFixed(2)}`;
     }
   };
@@ -41,7 +56,7 @@ export default function DashboardScreen() {
     try {
       return new Date(dateString).toLocaleDateString('pt-BR');
     } catch (error) {
-      console.error('Erro ao formatar data:', error);
+      logError('Erro ao formatar data', error);
       return dateString;
     }
   };

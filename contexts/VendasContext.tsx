@@ -144,16 +144,21 @@ const initializeDatabase = () => {
       return createMockDatabase();
     }
     
-    if (dbManager) {
-      console.log('Database manager inicializado com sucesso');
-      return dbManager;
-    } else {
-      console.warn('Database manager não disponível, usando mock');
+    // Sempre tentar usar o dbManager, mas com fallback
+    try {
+      if (dbManager && typeof dbManager.getClientes === 'function') {
+        console.log('Database manager inicializado com sucesso');
+        return dbManager;
+      } else {
+        console.warn('Database manager não está pronto, usando mock');
+        return createMockDatabase();
+      }
+    } catch (dbError) {
+      console.error('Erro ao acessar database manager:', dbError);
       return createMockDatabase();
     }
   } catch (error) {
-    console.error('Erro ao inicializar database:', error);
-    console.log('Usando mock database como fallback');
+    console.error('Erro crítico ao inicializar database:', error);
     return createMockDatabase();
   }
 };
@@ -177,35 +182,33 @@ export const [VendasContext, useVendas] = createContextHook(() => {
       // Initialize database manager
       const db = initializeDatabase();
       
-      // Aguardar um pouco para garantir que o banco está pronto
-      await new Promise(resolve => setTimeout(resolve, 200));
-      
+      // Carregar dados de forma segura
       console.log('Carregando clientes...');
-      const clientesData = db.getClientes();
+      const clientesData = await Promise.resolve(db.getClientes());
       console.log('Clientes carregados:', clientesData?.length || 0);
       
       console.log('Carregando produtos...');
-      const produtosData = db.getProdutos();
+      const produtosData = await Promise.resolve(db.getProdutos());
       console.log('Produtos carregados:', produtosData?.length || 0);
       
       console.log('Carregando pedidos...');
-      const pedidosData = db.getPedidos();
+      const pedidosData = await Promise.resolve(db.getPedidos());
       console.log('Pedidos carregados:', pedidosData?.length || 0);
       
       console.log('Carregando formas de pagamento...');
-      const formasData = db.getFormasPagamento();
+      const formasData = await Promise.resolve(db.getFormasPagamento());
       console.log('Formas de pagamento carregadas:', formasData?.length || 0);
       
       console.log('Carregando vendedores...');
-      const vendedoresData = db.getVendedores();
+      const vendedoresData = await Promise.resolve(db.getVendedores());
       console.log('Vendedores carregados:', vendedoresData?.length || 0);
       
       console.log('Carregando sincronizações...');
-      const syncData = db.getSincronizacoes();
+      const syncData = await Promise.resolve(db.getSincronizacoes());
       console.log('Sincronizações carregadas:', syncData?.length || 0);
       
       console.log('Carregando dashboard data...');
-      const dashData = db.getDashboardData();
+      const dashData = await Promise.resolve(db.getDashboardData());
       console.log('Dashboard data:', dashData);
 
       // Atualizar estado de forma segura
@@ -248,14 +251,10 @@ export const [VendasContext, useVendas] = createContextHook(() => {
   useEffect(() => {
     console.log('VendasContext inicializando...');
     
-    // Aguardar um pouco antes de carregar os dados para evitar conflitos
-    const timer = setTimeout(() => {
-      loadData().catch(error => {
-        console.error('Erro no carregamento inicial:', error);
-      });
-    }, 300);
-    
-    return () => clearTimeout(timer);
+    // Carregar dados imediatamente, mas de forma segura
+    loadData().catch(error => {
+      console.error('Erro no carregamento inicial:', error);
+    });
   }, [loadData]);
 
   const addCliente = useCallback(async (cliente: Omit<Cliente, 'id_cliente'>) => {

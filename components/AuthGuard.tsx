@@ -9,11 +9,23 @@ const Colors = {
 };
 
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isLoading } = useAuth();
+  const authContext = useAuth();
   const segments = useSegments();
   const navigationRef = useRef<boolean>(false);
 
+  const { isAuthenticated, isLoading } = authContext || { isAuthenticated: false, isLoading: true };
+
   useEffect(() => {
+    // Verificar se o contexto foi carregado corretamente
+    if (!authContext) {
+      console.error('AuthGuard - AuthContext não foi carregado!');
+      return;
+    }
+    console.log('AuthGuard - useEffect triggered');
+    console.log('AuthGuard - isLoading:', isLoading);
+    console.log('AuthGuard - isAuthenticated:', isAuthenticated);
+    console.log('AuthGuard - segments:', segments);
+    
     if (isLoading) {
       console.log('AuthGuard - Still loading, skipping navigation');
       return;
@@ -30,59 +42,59 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
     const inAuthGroup = segments[0] === '(tabs)';
     const isRootPath = currentPath === '' || currentPath === '(tabs)';
 
-    console.log('AuthGuard - isAuthenticated:', isAuthenticated);
     console.log('AuthGuard - currentPath:', currentPath);
+    console.log('AuthGuard - inLoginScreen:', inLoginScreen);
     console.log('AuthGuard - inAuthGroup:', inAuthGroup);
+    console.log('AuthGuard - isRootPath:', isRootPath);
     console.log('AuthGuard - Platform:', Platform.OS);
 
     if (!isAuthenticated) {
       if (!inLoginScreen && !inConfigScreen) {
-        console.log('Redirecting to login');
+        console.log('AuthGuard - Redirecting to login');
         navigationRef.current = true;
         
         const performNavigation = () => {
           try {
             router.replace('/login');
-            console.log('Navigation to login successful');
+            console.log('AuthGuard - Navigation to login successful');
           } catch (error) {
-            console.error('Error navigating to login:', error);
+            console.error('AuthGuard - Error navigating to login:', error);
           } finally {
             setTimeout(() => { 
               navigationRef.current = false; 
-              console.log('Navigation lock released');
+              console.log('AuthGuard - Navigation lock released');
             }, 500);
           }
         };
         
-        // Aguardar um pouco antes de navegar
         setTimeout(performNavigation, 100);
       }
     } else {
       if (inLoginScreen || isRootPath) {
-        console.log('Redirecting to tabs');
+        console.log('AuthGuard - Redirecting to tabs');
         navigationRef.current = true;
         
         const performNavigation = () => {
           try {
             router.replace('/(tabs)');
-            console.log('Navigation to tabs successful');
+            console.log('AuthGuard - Navigation to tabs successful');
           } catch (error) {
-            console.error('Error navigating to tabs:', error);
+            console.error('AuthGuard - Error navigating to tabs:', error);
           } finally {
             setTimeout(() => { 
               navigationRef.current = false; 
-              console.log('Navigation lock released');
+              console.log('AuthGuard - Navigation lock released');
             }, 500);
           }
         };
         
-        // Aguardar um pouco antes de navegar
         setTimeout(performNavigation, 100);
       }
     }
-  }, [isAuthenticated, isLoading, segments]);
+  }, [authContext, isAuthenticated, isLoading, segments]);
 
   if (isLoading) {
+    console.log('AuthGuard - Rendering loading screen');
     return (
       <View style={styles.loadingContainer}>
         <Text style={styles.loadingText}>Carregando...</Text>
@@ -91,6 +103,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
     );
   }
 
+  console.log('AuthGuard - Rendering children');
   return <>{children}</>;
 }
 

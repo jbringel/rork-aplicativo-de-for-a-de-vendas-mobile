@@ -8,29 +8,47 @@ import { VendasContext } from "@/contexts/VendasContext";
 import { AuthContext } from "@/contexts/AuthContext";
 import AuthGuard from "@/components/AuthGuard";
 import { trpc, trpcClient } from "@/lib/trpc";
+import { AppConfig, log, logError, healthCheck, setupErrorHandling } from "@/constants/AppConfig";
 
-class ErrorBoundary extends Component<{children: ReactNode}, {hasError: boolean, error?: Error}> {
+class ErrorBoundary extends Component<{children: ReactNode}, {hasError: boolean, error?: Error, errorInfo?: string}> {
   constructor(props: {children: ReactNode}) {
     super(props);
     this.state = { hasError: false };
   }
 
   static getDerivedStateFromError(error: Error) {
+    console.error('ErrorBoundary - Error caught:', error);
     return { hasError: true, error };
   }
 
   componentDidCatch(error: Error, errorInfo: any) {
-    console.error('ErrorBoundary caught an error:', error, errorInfo);
+    console.error('ErrorBoundary - Full error details:', {
+      error: error.message,
+      stack: error.stack,
+      errorInfo: errorInfo.componentStack
+    });
+    
+    this.setState({
+      errorInfo: errorInfo.componentStack
+    });
   }
 
   render() {
     if (this.state.hasError) {
       return (
         <View style={styles.errorContainer}>
-          <Text style={styles.errorTitle}>Algo deu errado</Text>
+          <Text style={styles.errorTitle}>App Parou de Funcionar</Text>
           <Text style={styles.errorMessage}>
             {this.state.error?.message || 'Erro desconhecido'}
           </Text>
+          <Text style={styles.errorDetails}>
+            Reinicie o aplicativo para continuar.
+          </Text>
+          {__DEV__ && this.state.errorInfo && (
+            <Text style={styles.errorStack}>
+              {this.state.errorInfo}
+            </Text>
+          )}
         </View>
       );
     }
@@ -52,11 +70,26 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#dc2626',
     marginBottom: 16,
+    textAlign: 'center',
   },
   errorMessage: {
     fontSize: 16,
     color: '#64748b',
     textAlign: 'center',
+    marginBottom: 12,
+  },
+  errorDetails: {
+    fontSize: 14,
+    color: '#64748b',
+    textAlign: 'center',
+    fontStyle: 'italic',
+  },
+  errorStack: {
+    fontSize: 12,
+    color: '#64748b',
+    textAlign: 'left',
+    marginTop: 20,
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
   },
 });
 
@@ -79,14 +112,20 @@ function RootLayoutNav() {
 
 export default function RootLayout() {
   useEffect(() => {
-    console.log('RootLayout iniciando... Platform:', Platform.OS);
+    log('RootLayout iniciando...', { platform: Platform.OS });
+    
+    // Configurar tratamento de erros
+    setupErrorHandling();
+    
+    // Fazer health check
+    healthCheck();
     
     // Aguardar um pouco antes de esconder o splash screen
     const timer = setTimeout(() => {
       SplashScreen.hideAsync().catch(error => {
-        console.error('Erro ao esconder splash screen:', error);
+        logError('Erro ao esconder splash screen', error);
       });
-    }, 100);
+    }, AppConfig.SPLASH_SCREEN_DELAY);
     
     return () => clearTimeout(timer);
   }, []);

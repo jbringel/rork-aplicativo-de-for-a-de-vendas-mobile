@@ -10,9 +10,9 @@ const getBaseUrl = () => {
     return process.env.EXPO_PUBLIC_RORK_API_BASE_URL;
   }
 
-  throw new Error(
-    "No base url found, please set EXPO_PUBLIC_RORK_API_BASE_URL"
-  );
+  // Fallback para desenvolvimento local
+  console.warn('EXPO_PUBLIC_RORK_API_BASE_URL não definida, usando fallback');
+  return 'http://localhost:3000';
 };
 
 export const trpcClient = trpc.createClient({
@@ -20,6 +20,23 @@ export const trpcClient = trpc.createClient({
     httpLink({
       url: `${getBaseUrl()}/api/trpc`,
       transformer: superjson,
+      fetch: (url, options) => {
+        console.log('tRPC fetch:', url);
+        return fetch(url, {
+          ...options,
+          headers: {
+            ...options?.headers,
+            'Content-Type': 'application/json',
+          },
+        }).catch(error => {
+          console.error('tRPC fetch error:', error);
+          // Retornar uma resposta mock em caso de erro
+          return new Response(JSON.stringify({ error: 'Network error' }), {
+            status: 500,
+            headers: { 'Content-Type': 'application/json' }
+          });
+        });
+      },
     }),
   ],
 });
