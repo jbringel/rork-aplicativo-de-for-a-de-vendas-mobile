@@ -1,14 +1,14 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import React, { useEffect, Component, ReactNode } from "react";
+import React, { useEffect, Component, ReactNode, useState, useMemo } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { View, Text, StyleSheet, Platform } from "react-native";
+import { View, Text, StyleSheet, Platform, Image, Animated } from "react-native";
 import { VendasContext } from "@/contexts/VendasContext";
 import { AuthContext } from "@/contexts/AuthContext";
 import AuthGuard from "@/components/AuthGuard";
 import { trpc, trpcClient } from "@/lib/trpc";
-import { AppConfig, log, logError, healthCheck, setupErrorHandling } from "@/constants/AppConfig";
+import { log, logError, healthCheck, setupErrorHandling } from "@/constants/AppConfig";
 
 class ErrorBoundary extends Component<{children: ReactNode}, {hasError: boolean, error?: Error, errorInfo?: string}> {
   constructor(props: {children: ReactNode}) {
@@ -110,7 +110,92 @@ function RootLayoutNav() {
   );
 }
 
+function CustomSplashScreen({ onFinish }: { onFinish: () => void }) {
+  const fadeAnim = useMemo(() => new Animated.Value(0), []);
+  const scaleAnim = useMemo(() => new Animated.Value(0.8), []);
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        tension: 50,
+        friction: 7,
+        useNativeDriver: true,
+      })
+    ]).start();
+
+    const timer = setTimeout(() => {
+      Animated.timing(fadeAnim, {
+        toValue: 0,
+        duration: 500,
+        useNativeDriver: true,
+      }).start(() => {
+        onFinish();
+      });
+    }, 2500);
+
+    return () => clearTimeout(timer);
+  }, [fadeAnim, scaleAnim, onFinish]);
+
+  return (
+    <View style={splashStyles.container}>
+      <Animated.View 
+        style={[
+          splashStyles.content,
+          {
+            opacity: fadeAnim,
+            transform: [{ scale: scaleAnim }]
+          }
+        ]}
+      >
+        <Image 
+          source={{ uri: 'https://r2-pub.rork.com/generated-images/9116a872-e0c4-42bb-9dd4-4077c1a1f212.png' }}
+          style={splashStyles.logo}
+          resizeMode="contain"
+        />
+        <Text style={splashStyles.title}>Força de Vendas</Text>
+        <Text style={splashStyles.subtitle}>Mobile</Text>
+      </Animated.View>
+    </View>
+  );
+}
+
+const splashStyles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#ffffff',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  content: {
+    alignItems: 'center',
+  },
+  logo: {
+    width: 120,
+    height: 120,
+    marginBottom: 24,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#2563eb',
+    marginBottom: 8,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: '#64748b',
+    fontWeight: '500',
+  },
+});
+
 export default function RootLayout() {
+  const [showSplash, setShowSplash] = useState(true);
+
   useEffect(() => {
     log('RootLayout iniciando...', { platform: Platform.OS });
     
@@ -120,15 +205,15 @@ export default function RootLayout() {
     // Fazer health check
     healthCheck();
     
-    // Aguardar um pouco antes de esconder o splash screen
-    const timer = setTimeout(() => {
-      SplashScreen.hideAsync().catch(error => {
-        logError('Erro ao esconder splash screen', error);
-      });
-    }, AppConfig.SPLASH_SCREEN_DELAY);
-    
-    return () => clearTimeout(timer);
+    // Esconder o splash screen nativo imediatamente
+    SplashScreen.hideAsync().catch(error => {
+      logError('Erro ao esconder splash screen', error);
+    });
   }, []);
+
+  if (showSplash) {
+    return <CustomSplashScreen onFinish={() => setShowSplash(false)} />;
+  }
 
   return (
     <ErrorBoundary>
