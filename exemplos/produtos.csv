@@ -1,0 +1,9 @@
+id_produto,codigo,nome,descricao,categoria,preco_venda,preco_promocional,estoque_atual,unidade_medida,ncm,observacoes,ativo
+1,001,Produto A,Descrição detalhada do Produto A,Categoria 1,25.90,23.90,100,UN,12345678,Produto em promoção,1
+2,002,Produto B,Descrição detalhada do Produto B,Categoria 1,45.50,,50,UN,23456789,,1
+3,003,Produto C,Descrição detalhada do Produto C,Categoria 2,89.90,79.90,25,UN,34567890,Produto premium,1
+4,004,Produto D,Descrição detalhada do Produto D,Categoria 2,120.00,,15,UN,45678901,,1
+5,005,Produto E,Descrição detalhada do Produto E,Categoria 3,199.90,179.90,8,UN,56789012,Produto de luxo,1
+6,006,Kit Especial,Kit com 3 produtos,Categoria 1,75.00,65.00,30,KIT,67890123,Kit promocional,1
+7,007,Serviço A,Serviço de instalação,Serviços,150.00,,999,HR,78901234,Serviço técnico,1
+8,008,Produto F,Produto vendido por peso,Categoria 3,12.50,,50.5,KG,89012345,,1

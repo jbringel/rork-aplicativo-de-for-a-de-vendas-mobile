@@ -1,0 +1,9 @@
+id_forma_pagamento,descricao,tipo,numero_max_parcelas,parcel_intervalo_dias,ativo
+1,À Vista,dinheiro,1,0,1
+2,Cartão de Crédito,cartao,12,30,1
+3,Cartão de Débito,cartao,1,0,1
+4,PIX,pix,1,0,1
+5,Boleto,boleto,6,30,1
+6,Crediário,crediario,24,30,1
+7,Transferência Bancária,transferencia,3,30,1
+8,Cheque,cheque,6,30,1

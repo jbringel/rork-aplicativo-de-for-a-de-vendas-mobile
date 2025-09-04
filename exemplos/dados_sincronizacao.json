@@ -1,0 +1,207 @@
+{
+  "clientes": [
+    {
+      "id_cliente": 1,
+      "nome_razao": "João Silva",
+      "fantasia": null,
+      "cpf_cnpj": "123.456.789-00",
+      "inscricao_estadual": null,
+      "endereco_logradouro": "Rua das Flores",
+      "endereco_numero": "123",
+      "endereco_complemento": null,
+      "bairro": "Centro",
+      "cidade": "São Paulo",
+      "uf": "SP",
+      "cep": "01234-567",
+      "telefone": "(11) 99999-9999",
+      "email": "joao@email.com",
+      "limite_credito": 5000.00,
+      "saldo_devedor": 0.00,
+      "vendedor_responsavel": 1,
+      "observacoes": "Cliente preferencial",
+      "ativo": 1
+    },
+    {
+      "id_cliente": 2,
+      "nome_razao": "Maria Santos",
+      "fantasia": null,
+      "cpf_cnpj": "987.654.321-00",
+      "inscricao_estadual": null,
+      "endereco_logradouro": "Av. Paulista",
+      "endereco_numero": "456",
+      "endereco_complemento": "Apto 101",
+      "bairro": "Bela Vista",
+      "cidade": "São Paulo",
+      "uf": "SP",
+      "cep": "01310-100",
+      "telefone": "(11) 88888-8888",
+      "email": "maria@email.com",
+      "limite_credito": 3000.00,
+      "saldo_devedor": 150.00,
+      "vendedor_responsavel": 1,
+      "observacoes": null,
+      "ativo": 1
+    },
+    {
+      "id_cliente": 3,
+      "nome_razao": "Empresa ABC Ltda",
+      "fantasia": "ABC Comércio",
+      "cpf_cnpj": "12.345.678/0001-90",
+      "inscricao_estadual": "123456789",
+      "endereco_logradouro": "Rua do Comércio",
+      "endereco_numero": "789",
+      "endereco_complemento": null,
+      "bairro": "Industrial",
+      "cidade": "São Paulo",
+      "uf": "SP",
+      "cep": "04567-890",
+      "telefone": "(11) 77777-7777",
+      "email": "contato@abc.com",
+      "limite_credito": 10000.00,
+      "saldo_devedor": 0.00,
+      "vendedor_responsavel": 1,
+      "observacoes": "Cliente corporativo",
+      "ativo": 1
+    }
+  ],
+  "produtos": [
+    {
+      "id_produto": 1,
+      "codigo": "001",
+      "nome": "Produto A",
+      "descricao": "Descrição detalhada do Produto A",
+      "categoria": "Categoria 1",
+      "preco_venda": 25.90,
+      "preco_promocional": 23.90,
+      "estoque_atual": 100,
+      "unidade_medida": "UN",
+      "ncm": "12345678",
+      "observacoes": "Produto em promoção",
+      "ativo": 1
+    },
+    {
+      "id_produto": 2,
+      "codigo": "002",
+      "nome": "Produto B",
+      "descricao": "Descrição detalhada do Produto B",
+      "categoria": "Categoria 1",
+      "preco_venda": 45.50,
+      "preco_promocional": null,
+      "estoque_atual": 50,
+      "unidade_medida": "UN",
+      "ncm": "23456789",
+      "observacoes": null,
+      "ativo": 1
+    },
+    {
+      "id_produto": 3,
+      "codigo": "003",
+      "nome": "Produto C",
+      "descricao": "Descrição detalhada do Produto C",
+      "categoria": "Categoria 2",
+      "preco_venda": 89.90,
+      "preco_promocional": 79.90,
+      "estoque_atual": 25,
+      "unidade_medida": "UN",
+      "ncm": "34567890",
+      "observacoes": "Produto premium",
+      "ativo": 1
+    }
+  ],
+  "formas_pagamento": [
+    {
+      "id_forma_pagamento": 1,
+      "descricao": "À Vista",
+      "tipo": "dinheiro",
+      "numero_max_parcelas": 1,
+      "parcel_intervalo_dias": 0,
+      "ativo": 1
+    },
+    {
+      "id_forma_pagamento": 2,
+      "descricao": "Cartão de Crédito",
+      "tipo": "cartao",
+      "numero_max_parcelas": 12,
+      "parcel_intervalo_dias": 30,
+      "ativo": 1
+    },
+    {
+      "id_forma_pagamento": 3,
+      "descricao": "PIX",
+      "tipo": "pix",
+      "numero_max_parcelas": 1,
+      "parcel_intervalo_dias": 0,
+      "ativo": 1
+    }
+  ],
+  "vendedores": [
+    {
+      "id_vendedor": 1,
+      "codigo_vendedor": "001",
+      "nome": "João Vendedor",
+      "email": "joao.vendedor@empresa.com",
+      "telefone": "(11) 91111-1111",
+      "ativo": 1
+    },
+    {
+      "id_vendedor": 2,
+      "codigo_vendedor": "002",
+      "nome": "Maria Vendedora",
+      "email": "maria.vendedora@empresa.com",
+      "telefone": "(11) 92222-2222",
+      "ativo": 1
+    },
+    {
+      "id_vendedor": 5,
+      "codigo_vendedor": "SUP",
+      "nome": "Supervisor",
+      "email": "supervisor@empresa.com",
+      "telefone": "(11) 99999-9999",
+      "ativo": 1
+    }
+  ],
+  "pedidos_exportacao": [
+    {
+      "id_pedido": 1,
+      "id_cliente": 1,
+      "id_vendedor": 1,
+      "data_pedido": "2024-01-15",
+      "status": "Pendente",
+      "valor_bruto": 100.00,
+      "valor_desconto": 5.00,
+      "valor_liquido": 95.00,
+      "forma_pagamento_padrao": 1,
+      "observacoes": "Pedido de teste",
+      "sincronizado": 0,
+      "itens": [
+        {
+          "id_produto": 1,
+          "codigo_produto": "001",
+          "descricao_produto": "Produto A",
+          "quantidade": 2,
+          "valor_unitario": 25.90,
+          "desconto_item": 2.50,
+          "subtotal": 49.30
+        },
+        {
+          "id_produto": 2,
+          "codigo_produto": "002",
+          "descricao_produto": "Produto B",
+          "quantidade": 1,
+          "valor_unitario": 45.50,
+          "desconto_item": 0.00,
+          "subtotal": 45.50
+        }
+      ],
+      "pagamentos": [
+        {
+          "id_forma_pagamento": 1,
+          "numero_parcela": 1,
+          "valor_parcela": 95.00,
+          "data_vencimento": "2024-01-15",
+          "status_parcela": "Aberta"
+        }
+      ]
+    }
+  ]
+}
