@@ -324,8 +324,12 @@ export default function PedidoFormScreen() {
                   <TextInput
                     style={styles.smallInput}
                     value={item.desconto_item.toString()}
-                    onChangeText={(text) => atualizarItem(index, 'desconto_item', parseFloat(text) || 0)}
-                    keyboardType="numeric"
+                    onChangeText={(text) => {
+                      const parsed = parseFloat(text) || 0;
+                      const rounded = Math.round(parsed * 1000) / 1000;
+                      atualizarItem(index, 'desconto_item', rounded);
+                    }}
+                    keyboardType="decimal-pad"
                   />
                 </View>
               </View>
