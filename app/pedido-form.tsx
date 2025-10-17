@@ -22,6 +22,7 @@ interface ItemPedido {
   quantidade: number;
   valor_unitario: number;
   desconto_item: number;
+  desconto_tipo: 'valor' | 'percentual';
   subtotal: number;
 }
 
@@ -78,7 +79,12 @@ export default function PedidoFormScreen() {
   };
 
   const calcularValorDesconto = () => {
-    return itens.reduce((total, item) => total + item.desconto_item, 0);
+    return itens.reduce((total, item) => {
+      if (item.desconto_tipo === 'percentual') {
+        return total + (item.quantidade * item.valor_unitario * (item.desconto_item / 100));
+      }
+      return total + item.desconto_item;
+    }, 0);
   };
 
   const calcularValorLiquido = () => {
@@ -92,6 +98,14 @@ export default function PedidoFormScreen() {
     }).format(value);
   };
 
+  const calcularSubtotal = (item: ItemPedido) => {
+    const valorBruto = item.quantidade * item.valor_unitario;
+    if (item.desconto_tipo === 'percentual') {
+      return valorBruto - (valorBruto * (item.desconto_item / 100));
+    }
+    return valorBruto - item.desconto_item;
+  };
+
   const adicionarItem = (produto: Produto) => {
     const quantidade = quantidadesProdutos[produto.id_produto!] || 1;
     const novoItem: ItemPedido = {
@@ -99,10 +113,11 @@ export default function PedidoFormScreen() {
       quantidade,
       valor_unitario: produto.preco_promocional || produto.preco_venda,
       desconto_item: 0,
+      desconto_tipo: 'valor',
       subtotal: (produto.preco_promocional || produto.preco_venda) * quantidade,
     };
     setItens(prev => [...prev, novoItem]);
-    setQuantidadesProdutos(prev => ({ ...prev, [produto.id_produto!]: 1 })); // Reset quantidade
+    setQuantidadesProdutos(prev => ({ ...prev, [produto.id_produto!]: 1 }));
     setShowProdutoModal(false);
   };
 
@@ -119,7 +134,7 @@ export default function PedidoFormScreen() {
       if (i === index) {
         const novaQuantidade = Math.max(1, item.quantidade + delta);
         const itemAtualizado = { ...item, quantidade: novaQuantidade };
-        itemAtualizado.subtotal = (itemAtualizado.quantidade * itemAtualizado.valor_unitario) - itemAtualizado.desconto_item;
+        itemAtualizado.subtotal = calcularSubtotal(itemAtualizado);
         return itemAtualizado;
       }
       return item;
@@ -130,8 +145,8 @@ export default function PedidoFormScreen() {
     setItens(prev => prev.map((item, i) => {
       if (i === index) {
         const itemAtualizado = { ...item, [campo]: valor };
-        if (campo === 'quantidade' || campo === 'valor_unitario' || campo === 'desconto_item') {
-          itemAtualizado.subtotal = (itemAtualizado.quantidade * itemAtualizado.valor_unitario) - itemAtualizado.desconto_item;
+        if (campo === 'quantidade' || campo === 'valor_unitario' || campo === 'desconto_item' || campo === 'desconto_tipo') {
+          itemAtualizado.subtotal = calcularSubtotal(itemAtualizado);
         }
         return itemAtualizado;
       }
@@ -184,11 +199,9 @@ export default function PedidoFormScreen() {
     if (!validarPedido()) return;
 
     try {
-      // Usar o vendedor selecionado ou criar um vendedor baseado no usuário logado
       let vendedorParaPedido = vendedorSelecionado;
       
       if (!vendedorParaPedido && currentUser?.codigo_vendedor) {
-        // Criar um vendedor temporário com os dados do usuário logado
         vendedorParaPedido = {
           codigo_vendedor: currentUser.codigo_vendedor,
           nome: currentUser.username,
@@ -225,7 +238,6 @@ export default function PedidoFormScreen() {
       </View>
 
       <ScrollView style={styles.content}>
-        {/* Seleção de Cliente */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Cliente</Text>
           <TouchableOpacity
@@ -239,7 +251,6 @@ export default function PedidoFormScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Seleção de Vendedor */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Vendedor</Text>
           <TouchableOpacity
@@ -263,7 +274,6 @@ export default function PedidoFormScreen() {
           )}
         </View>
 
-        {/* Itens do Pedido */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Itens</Text>
@@ -321,16 +331,26 @@ export default function PedidoFormScreen() {
                 
                 <View style={styles.inputGroup}>
                   <Text style={styles.inputLabel}>Desconto</Text>
-                  <TextInput
-                    style={styles.smallInput}
-                    value={item.desconto_item.toString()}
-                    onChangeText={(text) => {
-                      const parsed = parseFloat(text) || 0;
-                      const rounded = Math.round(parsed * 1000) / 1000;
-                      atualizarItem(index, 'desconto_item', rounded);
-                    }}
-                    keyboardType="decimal-pad"
-                  />
+                  <View style={styles.descontoContainer}>
+                    <TextInput
+                      style={styles.descontoInput}
+                      value={item.desconto_item.toString()}
+                      onChangeText={(text) => {
+                        const cleaned = text.replace(',', '.');
+                        const parsed = parseFloat(cleaned) || 0;
+                        const rounded = Math.round(parsed * 1000) / 1000;
+                        atualizarItem(index, 'desconto_item', rounded);
+                      }}
+                      keyboardType="decimal-pad"
+                      placeholder="0.000"
+                    />
+                    <TouchableOpacity
+                      style={styles.descontoTipoButton}
+                      onPress={() => atualizarItem(index, 'desconto_tipo', item.desconto_tipo === 'valor' ? 'percentual' : 'valor')}
+                    >
+                      <Text style={styles.descontoTipoText}>{item.desconto_tipo === 'valor' ? 'R$' : '%'}</Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
               </View>
               
@@ -341,7 +361,6 @@ export default function PedidoFormScreen() {
           ))}
         </View>
 
-        {/* Pagamento */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Pagamento</Text>
@@ -376,7 +395,6 @@ export default function PedidoFormScreen() {
           ))}
         </View>
 
-        {/* Observações */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Observações</Text>
           <TextInput
@@ -389,7 +407,6 @@ export default function PedidoFormScreen() {
           />
         </View>
 
-        {/* Resumo de Valores */}
         <View style={styles.totalSection}>
           <View style={styles.valorRow}>
             <Text style={styles.valorLabel}>Valor Bruto:</Text>
@@ -409,7 +426,6 @@ export default function PedidoFormScreen() {
         </View>
       </ScrollView>
 
-      {/* Modal de Seleção de Cliente */}
       <Modal visible={showClienteModal} animationType="slide">
         <View style={styles.modalContainer}>
           <View style={styles.modalHeader}>
@@ -450,7 +466,6 @@ export default function PedidoFormScreen() {
         </View>
       </Modal>
 
-      {/* Modal de Seleção de Produto */}
       <Modal visible={showProdutoModal} animationType="slide">
         <View style={styles.modalContainer}>
           <View style={styles.modalHeader}>
@@ -514,7 +529,6 @@ export default function PedidoFormScreen() {
         </View>
       </Modal>
 
-      {/* Modal de Vendedor */}
       <Modal visible={showVendedorModal} animationType="slide">
         <View style={styles.modalContainer}>
           <View style={styles.modalHeader}>
@@ -550,7 +564,6 @@ export default function PedidoFormScreen() {
         </View>
       </Modal>
 
-      {/* Modal de Pagamento */}
       <Modal visible={showPagamentoModal} animationType="slide">
         <View style={styles.modalContainer}>
           <View style={styles.modalHeader}>
@@ -561,7 +574,6 @@ export default function PedidoFormScreen() {
           </View>
 
           <ScrollView style={styles.modalContent}>
-            {/* Seleção de Forma de Pagamento */}
             <View style={styles.modalSection}>
               <Text style={styles.modalSectionTitle}>Forma de Pagamento</Text>
               {formasPagamento.map((forma) => (
@@ -586,7 +598,6 @@ export default function PedidoFormScreen() {
               ))}
             </View>
 
-            {/* Configuração de Parcelas */}
             {formaPagamentoSelecionada && (
               <View style={styles.modalSection}>
                 <Text style={styles.modalSectionTitle}>Número de Parcelas</Text>
@@ -615,7 +626,6 @@ export default function PedidoFormScreen() {
               </View>
             )}
 
-            {/* Data da Primeira Parcela */}
             {formaPagamentoSelecionada && numeroParcelas > 1 && (
               <View style={styles.modalSection}>
                 <Text style={styles.modalSectionTitle}>Primeira Parcela</Text>
@@ -628,7 +638,6 @@ export default function PedidoFormScreen() {
               </View>
             )}
 
-            {/* Resumo das Parcelas */}
             {formaPagamentoSelecionada && (
               <View style={styles.modalSection}>
                 <Text style={styles.modalSectionTitle}>Resumo das Parcelas</Text>
@@ -638,7 +647,6 @@ export default function PedidoFormScreen() {
               </View>
             )}
 
-            {/* Botão Confirmar */}
             {formaPagamentoSelecionada && (
               <TouchableOpacity
                 style={styles.confirmarButton}
@@ -924,7 +932,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
   },
-  // Novos estilos para o modal de pagamento
   valorRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -1151,5 +1158,33 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     minWidth: 30,
     textAlign: 'center',
+  },
+  descontoContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 6,
+    overflow: 'hidden',
+  },
+  descontoInput: {
+    flex: 1,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  descontoTipoButton: {
+    backgroundColor: Colors.primary,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    justifyContent: 'center',
+    alignItems: 'center',
+    minWidth: 36,
+  },
+  descontoTipoText: {
+    color: Colors.surface,
+    fontSize: 12,
+    fontWeight: '600',
   },
 });
